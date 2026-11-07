@@ -1,5 +1,5 @@
-// Stage 3 (verdict half): the Fight button calls /api/fight for the winner and
-// reasoning. Fighter images are still placeholders until image generation lands.
+// Stage 3: the Fight button calls /api/fight for the winner, reasoning and one
+// image per fighter. A side whose art failed shows a placeholder and a note.
 
 const views = {
   form: document.getElementById("view-form"),
@@ -12,7 +12,7 @@ const form = document.getElementById("fight-form");
 const inputA = document.getElementById("fighter-a");
 const inputB = document.getElementById("fighter-b");
 
-const FIGHT_TIMEOUT_MS = 60_000; // never leave the loading view up forever
+const FIGHT_TIMEOUT_MS = 120_000; // never leave the loading view up forever (matches maxDuration)
 
 // Show exactly one view; every other view gets `hidden`.
 function showView(name) {
@@ -38,7 +38,7 @@ function placeholderImage(label, color) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-// Calls the fight API. Resolves to { winner: "A" | "B", reasoning }, or throws
+// Calls the fight API. Resolves to { winner: "A" | "B", reasoning, images }, or throws
 // a FightError whose title/message are ready to show in the error view.
 class FightError extends Error {
   constructor(title, message) {
@@ -87,19 +87,30 @@ function renderResult(fighterA, fighterB, verdict) {
   document.getElementById("result-winner").textContent = winnerSide === "a" ? fighterA : fighterB;
   document.getElementById("result-reasoning").textContent = verdict.reasoning;
 
-  // Placeholder art until image generation is added to /api/fight.
   const sides = [
-    { label: fighterA, image: placeholderImage(fighterA, "#3a6ea5"), key: "a" },
-    { label: fighterB, image: placeholderImage(fighterB, "#a53a3a"), key: "b" },
+    { label: fighterA, art: verdict.images?.A, key: "a", color: "#3a6ea5" },
+    { label: fighterB, art: verdict.images?.B, key: "b", color: "#a53a3a" },
   ];
   for (const side of sides) {
     const img = document.getElementById(`image-${side.key}`);
-    img.src = side.image;
+    img.src = side.art?.src || placeholderImage(side.label, side.color);
     img.alt = side.label;
     document.getElementById(`label-${side.key}`).textContent = side.label;
     document
       .getElementById(`card-${side.key}`)
       .classList.toggle("is-winner", side.key === winnerSide);
+
+    // Image failures are per side: moderation-blocked and generic failures get
+    // different messages (and styling); the verdict still shows either way.
+    const note = document.getElementById(`art-error-${side.key}`);
+    const artError = side.art?.src ? null : side.art?.error || { type: "image_failed" };
+    note.hidden = !artError;
+    note.classList.toggle("is-blocked", artError?.type === "image_blocked");
+    note.textContent = !artError
+      ? ""
+      : artError.type === "image_blocked"
+        ? artError.message || "Blocked by the image safety filter, so this fighter couldn't be drawn."
+        : artError.message || "The artist couldn't draw this fighter.";
   }
 
   showView("result");

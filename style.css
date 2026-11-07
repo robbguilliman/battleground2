@@ -172,6 +172,17 @@ input[type="text"]:focus {
   overflow-wrap: anywhere;
 }
 
+.fighter-card .art-error {
+  margin: 0;
+  padding: 0 8px 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.fighter-card .art-error.is-blocked {
+  color: var(--accent);
+}
+
 .reasoning {
   margin: 16px 0;
 }

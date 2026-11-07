@@ -54,15 +54,16 @@
 
 - [x] `api/fight.js` serverless function: takes `{ fighterA, fighterB }`
 - [x] Rate limit check runs first, before calling either API — key by IP, 5 requests/minute per `project-brief.md` §5, return 429 with a clear message when exceeded
-- [ ] Calls Claude for the verdict (using the Stage 2 system prompt) and OpenAI image API for both fighters' art
+- [x] Calls Claude for the verdict (using the Stage 2 system prompt) and OpenAI image API for both fighters' art
 - [x] Verdict output (`winner`, `reasoning`) enforced via a zod schema, not JSON-format instructions in the prompt
   > Note: the judge system prompt (`api/_lib/judge-prompt.js`) has no output-format or JSON instructions. The zod schema is the only definition of the verdict shape, so field meanings go in `.describe()` on each field: `winner: z.enum(["A", "B"])` ("A" if the fighter in `<fighter_a>` wins, "B" if the fighter in `<fighter_b>` wins; A/B rather than names so mirror matches like "cow" vs "cow" are unambiguous) and `reasoning: z.string()` (3-5 sentences explaining why the winner won).
 - [x] Store both API keys in env vars, never in client code
-- [ ] Group inputs (e.g. "10 cows") still produce exactly one image for that side — handled in the prompt sent to the image API, not by looping
-- [ ] Every image generated must follow one shared art style template, appended to each fighter's image prompt (not left to the model's default style):
-  > 16-bit pixel art illustration, retro video game sprite style, bold outlined pixels, vibrant limited color palette, dynamic action pose. Depicted as one cohesive image, centered, filling most of the frame, isolated on a plain solid color background with no scenery. No text, words, letters, numbers, logos, watermarks, UI elements, borders, or frames.
+- [x] Group inputs (e.g. "10 cows") still produce exactly one image for that side — handled in the prompt sent to the image API, not by looping
+- [x] Every image created must follow one shared art style template, appended verbatim to each fighter's image prompt (never left to the model's default style):
+  > Bold flat-color illustration, thick black outlines, dynamic action pose, dramatic lighting, video game character art style. Keep it centered, filling most of the frame, isolated on a plain solid light grey background with no scenery. Absolutely no text, words, letters, numbers, logos, watermarks, UI elements, borders, or frames of any kind. Illustration only, nothing else on the canvas.
 - [x] Wire Fight button to call `/api/fight` instead of the fake timeout
-- [ ] Handle errors distinctly in the UI: verdict failure, image failure, moderation-blocked (image request rejected by OpenAI's content moderation — distinct message from a generic image failure), rate-limit 429 — don't hang on loading forever
+- [x] Moderation-blocked is its own distinct error case, separate from a generic image failure: when OpenAI's content moderation rejects an image request, the API returns its own error type and the UI shows its own message (e.g. that the fighter couldn't be drawn and to try a different one), never the generic "image failed" message
+- [x] Handle errors distinctly in the UI: verdict failure, generic image failure, moderation-blocked (see above), rate-limit 429 — don't hang on loading forever
 
 **Done when:** typing two real fighters returns winner + reasoning + one image per side from a single call, both images following the shared art style template; hammering Fight 6x in a minute from one IP gets blocked on the 6th and resets after a minute.
 

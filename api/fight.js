@@ -1,12 +1,17 @@
-// POST /api/fight  { fighterA, fighterB }  ->  { winner: "A" | "B", reasoning }
+// POST /api/fight  { fighterA, fighterB }  ->
+//   { winner: "A" | "B", reasoning, images: { A: Art, B: Art } }
+//   where Art is { src: "data:image/jpeg;base64,..." }
+//            or { error: { type: "image_blocked" | "image_failed", message } }
 //
-// Stage 3, verdict half only: rate limit, then one Claude call for the verdict.
-// Image generation is not wired in yet.
+// One call per fight: rate limit, validate, then the Claude verdict and both
+// fighters' OpenAI art run in parallel. A failed verdict fails the whole fight;
+// a failed image only fails that side, so the verdict still shows.
 
 const Anthropic = require("@anthropic-ai/sdk").default;
 const { betaZodOutputFormat } = require("@anthropic-ai/sdk/helpers/beta/zod");
 const { z } = require("zod");
 const { JUDGE_SYSTEM_PROMPT, buildJudgeUserMessage } = require("./_lib/judge-prompt");
+const { generateFighterImage } = require("./_lib/fighter-art");
 
 const MODEL = "claude-sonnet-5-5";
 const MAX_FIGHTER_LENGTH = 100; // matches the inputs' maxlength in index.html
@@ -120,6 +125,30 @@ async function judgeFight(fighterA, fighterB) {
 
 class VerdictError extends Error {}
 
+// Maps a verdict failure to the status and message the UI shows.
+function verdictErrorResponse(err) {
+  if (err instanceof VerdictError) return [502, err.message];
+  if (err instanceof Anthropic.RateLimitError) {
+    // Anthropic's limit, not ours: report as busy so the UI doesn't confuse it with our 429.
+    return [503, "The judge is swamped right now. Try again in a moment."];
+  }
+  if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
+    return [500, "The judge isn't set up correctly (API key rejected)."];
+  }
+  if (err instanceof Anthropic.APIConnectionError) return [504, "Couldn't reach the judge. Please try again."];
+  if (err instanceof Anthropic.APIError) return [502, "The judge ran into a problem. Please try again."];
+  // AnthropicError without a status: e.g. the structured output failed zod validation.
+  return [502, "The judge's verdict didn't make sense. Please try again."];
+}
+
+// Never rejects: resolves to { src } or { error: { type, message } }.
+function settleArt(fighter, signal) {
+  return generateFighterImage(fighter, { signal }).then(
+    (src) => ({ src }),
+    (err) => ({ error: { type: err.type || "image_failed", message: err.message } }),
+  );
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -147,30 +176,25 @@ module.exports = async function handler(req, res) {
     return sendError(res, 500, "verdict_failed", "The judge isn't set up yet (missing API key).");
   }
 
-  // 3. Verdict.
+  // 3. Verdict and both images, in parallel.
+  const art = new AbortController();
+  const artA = settleArt(input.fighterA, art.signal);
+  const artB = settleArt(input.fighterB, art.signal);
+
+  let verdict;
   try {
-    const verdict = await judgeFight(input.fighterA, input.fighterB);
-    return res.status(200).json({ winner: verdict.winner, reasoning: verdict.reasoning });
+    verdict = await judgeFight(input.fighterA, input.fighterB);
   } catch (err) {
     console.error("Verdict failed:", err);
-
-    if (err instanceof VerdictError) {
-      return sendError(res, 502, "verdict_failed", err.message);
-    }
-    if (err instanceof Anthropic.RateLimitError) {
-      // Anthropic's limit, not ours: report as busy so the UI doesn't confuse it with our 429.
-      return sendError(res, 503, "verdict_failed", "The judge is swamped right now. Try again in a moment.");
-    }
-    if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
-      return sendError(res, 500, "verdict_failed", "The judge isn't set up correctly (API key rejected).");
-    }
-    if (err instanceof Anthropic.APIConnectionError) {
-      return sendError(res, 504, "verdict_failed", "Couldn't reach the judge. Please try again.");
-    }
-    if (err instanceof Anthropic.APIError) {
-      return sendError(res, 502, "verdict_failed", "The judge ran into a problem. Please try again.");
-    }
-    // AnthropicError without a status: e.g. the structured output failed zod validation.
-    return sendError(res, 502, "verdict_failed", "The judge's verdict didn't make sense. Please try again.");
+    art.abort(); // no verdict means no result to show, so stop drawing
+    const [status, message] = verdictErrorResponse(err);
+    return sendError(res, status, "verdict_failed", message);
   }
+
+  const [imageA, imageB] = await Promise.all([artA, artB]);
+  return res.status(200).json({
+    winner: verdict.winner,
+    reasoning: verdict.reasoning,
+    images: { A: imageA, B: imageB },
+  });
 };

@@ -33,7 +33,7 @@
     <!-- View: loading -->
     <section id="view-loading" class="view" hidden aria-live="polite" aria-busy="true">
       <div class="spinner" aria-hidden="true"></div>
-      <p id="loading-text">Judging the fight…</p>
+      <p id="loading-text">Judging the fight and drawing the fighters…</p>
     </section>
 
     <!-- View: result -->
@@ -43,10 +43,12 @@
         <figure class="fighter-card" id="card-a">
           <img id="image-a" alt="">
           <figcaption id="label-a"></figcaption>
+          <p class="art-error" id="art-error-a" hidden></p>
         </figure>
         <figure class="fighter-card" id="card-b">
           <img id="image-b" alt="">
           <figcaption id="label-b"></figcaption>
+          <p class="art-error" id="art-error-b" hidden></p>
         </figure>
       </div>
       <p id="result-reasoning" class="reasoning"></p>
