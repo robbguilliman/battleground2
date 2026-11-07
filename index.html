@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Battleground</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <h1>Battleground</h1>
+    <p class="tagline">Two fighters enter. One leaves.</p>
+  </header>
+
+  <main>
+    <!-- View: input form (only view visible on load) -->
+    <section id="view-form" class="view" aria-labelledby="form-title">
+      <h2 id="form-title" class="visually-hidden">Pick your fighters</h2>
+      <form id="fight-form" novalidate>
+        <div class="field">
+          <label for="fighter-a">Fighter A</label>
+          <input id="fighter-a" name="fighterA" type="text" maxlength="100" autocomplete="off" placeholder="e.g. a grizzly bear">
+        </div>
+        <p class="vs" aria-hidden="true">VS</p>
+        <div class="field">
+          <label for="fighter-b">Fighter B</label>
+          <input id="fighter-b" name="fighterB" type="text" maxlength="100" autocomplete="off" placeholder="e.g. 10 angry geese">
+        </div>
+        <button type="submit" class="btn btn-primary">Fight!</button>
+      </form>
+    </section>
+
+    <!-- View: loading -->
+    <section id="view-loading" class="view" hidden aria-live="polite" aria-busy="true">
+      <div class="spinner" aria-hidden="true"></div>
+      <p id="loading-text">Judging the fight…</p>
+    </section>
+
+    <!-- View: result -->
+    <section id="view-result" class="view" hidden aria-labelledby="result-title">
+      <h2 id="result-title">Winner: <span id="result-winner"></span></h2>
+      <div class="fighters">
+        <figure class="fighter-card" id="card-a">
+          <img id="image-a" alt="">
+          <figcaption id="label-a"></figcaption>
+        </figure>
+        <figure class="fighter-card" id="card-b">
+          <img id="image-b" alt="">
+          <figcaption id="label-b"></figcaption>
+        </figure>
+      </div>
+      <p id="result-reasoning" class="reasoning"></p>
+      <button type="button" class="btn btn-primary" data-action="new-fight">New fight</button>
+    </section>
+
+    <!-- View: error -->
+    <section id="view-error" class="view" hidden role="alert" aria-labelledby="error-title">
+      <h2 id="error-title">Something went wrong</h2>
+      <p id="error-message"></p>
+      <button type="button" class="btn btn-primary" data-action="new-fight">Try again</button>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

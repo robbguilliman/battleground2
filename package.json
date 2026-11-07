@@ -1,0 +1,10 @@
+{
+  "name": "battleground",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Type two fighters, get an AI verdict and character art.",
+  "scripts": {
+    "dev": "node dev-server.js",
+    "dev:vercel": "vercel dev"
+  }
+}

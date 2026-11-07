@@ -1,0 +1,4 @@
+# Local-only files that should never be uploaded or served
+.env*
+dev-server.js
+*.md
