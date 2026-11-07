@@ -6,5 +6,9 @@
   "scripts": {
     "dev": "node dev-server.js",
     "dev:vercel": "vercel dev"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "zod": "^4.6.7"
   }
 }
