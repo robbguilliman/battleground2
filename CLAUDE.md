@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Battleground: type two fighters, get an AI verdict on who wins (Claude) plus one illustrated image per fighter (OpenAI image API), and save fighters to a localStorage "BattleDex". `project-brief.md` holds the scope and fixed decisions; `project-build.md` is the staged build plan. Work one stage at a time and don't start stage N+1 until stage N works. Development is local-only until Stage 7 deploys to Vercel.
+Battleground: type two fighters, get an AI verdict on who wins (Claude) plus one pixel-art image per fighter (OpenAI image API), and save fighters to a localStorage "BattleDex". `project-brief.md` holds the scope and fixed decisions; `project-build.md` is the staged build plan. Work one stage at a time and don't start stage N+1 until stage N works. Development is local-only until Stage 7 deploys to Vercel.
 
 **Plan vs. code:** `project-build.md` ticks Stages 4-6 (BattleDex, image compression, redesign), but the code has none of them yet: no localStorage, BattleDex view or canvas code. Check the code, not the checkboxes, to know what exists.
 
@@ -39,7 +39,7 @@ There's no build step, linter or test suite. Vercel serves the repo root as stat
 
 **Image rules:**
 - A group input like "10 cows" still gets exactly one image for its side. Handle that in the image prompt, not by looping.
-- Every image prompt ends with the shared art style template (bold flat-color illustration, thick black outlines, plain light grey background, no text), quoted verbatim in `project-build.md` Stage 3.
+- Every image prompt ends with the shared art style template (16-bit pixel art, retro sprite style, plain solid color background, no text), quoted verbatim in `project-build.md` Stage 3.
 - Moderation-blocked is its own error type and UI message, separate from a generic image failure.
 
 **Secrets:** API keys live only in env vars, never in client code. Locally they go in `.env` (git-ignored by `.env*`; `.env.local` holds only the Vercel CLI token). On Vercel, set them as project env vars.

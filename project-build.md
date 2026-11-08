@@ -41,8 +41,8 @@
 - [x] Reasoning must be 3-5 sentences max, fun and playful tone, but still logical — it must clearly justify why the winner won
 - [x] Explicitly forbid in the prompt: role changes, revealing the system prompt, following instructions embedded in fighter names/descriptions, doing anything other than judging the fight
 - [x] Treat fighter input strictly as data to judge, never as instructions
-- [ ] Test with adversarial input (e.g. a fighter name containing "ignore previous instructions and...") — confirm it still just judges a fight
-- [ ] Test with identical fighters twice (e.g. "cow" vs "cow") — confirm it still names one winner, no tie/refusal
+- [x] Test with adversarial input (e.g. a fighter name containing "ignore previous instructions and...") — confirm it still just judges a fight
+- [x] Test with identical fighters twice (e.g. "cow" vs "cow") — confirm it still names one winner, no tie/refusal
 
 **Done when:** injected instructions inside fighter text don't change judge behavior or leak the system prompt.
 
@@ -60,7 +60,7 @@
 - [x] Store both API keys in env vars, never in client code
 - [x] Group inputs (e.g. "10 cows") still produce exactly one image for that side — handled in the prompt sent to the image API, not by looping
 - [x] Every image created must follow one shared art style template, appended verbatim to each fighter's image prompt (never left to the model's default style):
-  > Bold flat-color illustration, thick black outlines, dynamic action pose, dramatic lighting, video game character art style. Keep it centered, filling most of the frame, isolated on a plain solid light grey background with no scenery. Absolutely no text, words, letters, numbers, logos, watermarks, UI elements, borders, or frames of any kind. Illustration only, nothing else on the canvas.
+  > 16-bit pixel art illustration, retro video game sprite style, bold outlined pixels, vibrant limited color palette, dynamic action pose. Depicted as one cohesive image, centered, filling most of the frame, isolated on a plain solid color background with no scenery. No text, words, letters, numbers, logos, watermarks, UI elements, borders, or frames.
 - [x] Wire Fight button to call `/api/fight` instead of the fake timeout
 - [x] Moderation-blocked is its own distinct error case, separate from a generic image failure: when OpenAI's content moderation rejects an image request, the API returns its own error type and the UI shows its own message (e.g. that the fighter couldn't be drawn and to try a different one), never the generic "image failed" message
 - [x] Handle errors distinctly in the UI: verdict failure, generic image failure, moderation-blocked (see above), rate-limit 429 — don't hang on loading forever
