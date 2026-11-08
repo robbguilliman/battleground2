@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BattleDex · Battleground</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <h1><a href="index.html" class="home-link">Battleground</a></h1>
+    <p class="tagline">Two fighters enter. One leaves.</p>
+  </header>
+
+  <main>
+    <!-- BattleDex: saved fighters, read from localStorage -->
+    <section id="view-dex" class="view" aria-labelledby="dex-title">
+      <div class="dex-header">
+        <h2 id="dex-title">BattleDex</h2>
+        <p id="dex-count" class="dex-count"></p>
+      </div>
+      <p id="dex-empty" class="dex-empty" hidden>No fighters saved yet. Win (or lose) a fight and save a fighter to start your collection.</p>
+      <p id="dex-pick-hint" class="dex-pick-hint" hidden>Pick one or two fighters to send them into a new fight.</p>
+      <ul id="dex-grid" class="dex-grid"></ul>
+      <div class="dex-pick-bar" id="dex-pick-bar" hidden>
+        <p id="dex-pick-status" class="dex-pick-status" role="status"></p>
+        <button type="button" class="btn btn-primary" id="dex-fight" disabled>Fight with picked</button>
+      </div>
+      <div class="actions">
+        <a class="btn btn-primary" href="index.html">New fight</a>
+        <a class="btn btn-secondary" id="dex-back" href="index.html#last-fight" hidden>Back to last fight</a>
+        <button type="button" class="btn btn-danger" id="dex-clear" hidden>Clear all</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="dex-store.js"></script>
+  <script src="battledex.js"></script>
+</body>
+</html>

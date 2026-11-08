@@ -20,14 +20,17 @@
         <div class="field">
           <label for="fighter-a">Fighter A</label>
           <input id="fighter-a" name="fighterA" type="text" maxlength="100" autocomplete="off" placeholder="e.g. a grizzly bear">
+          <p class="picked" id="picked-a" hidden><img alt="" id="picked-img-a"> From your BattleDex, keeping its saved art</p>
         </div>
         <p class="vs" aria-hidden="true">VS</p>
         <div class="field">
           <label for="fighter-b">Fighter B</label>
           <input id="fighter-b" name="fighterB" type="text" maxlength="100" autocomplete="off" placeholder="e.g. 10 angry geese">
+          <p class="picked" id="picked-b" hidden><img alt="" id="picked-img-b"> From your BattleDex, keeping its saved art</p>
         </div>
         <button type="submit" class="btn btn-primary">Fight!</button>
       </form>
+      <a class="btn btn-secondary btn-block" href="battledex.html">BattleDex</a>
     </section>
 
     <!-- View: loading -->
@@ -44,16 +47,23 @@
           <img id="image-a" alt="">
           <figcaption id="label-a"></figcaption>
           <p class="art-error" id="art-error-a" hidden></p>
+          <button type="button" class="btn btn-small" id="save-a" data-save="a">Save to BattleDex</button>
         </figure>
         <figure class="fighter-card" id="card-b">
           <img id="image-b" alt="">
           <figcaption id="label-b"></figcaption>
           <p class="art-error" id="art-error-b" hidden></p>
+          <button type="button" class="btn btn-small" id="save-b" data-save="b">Save to BattleDex</button>
         </figure>
       </div>
       <p id="result-reasoning" class="reasoning"></p>
-      <button type="button" class="btn btn-primary" data-action="new-fight">New fight</button>
+      <p id="save-status" class="save-status" role="status"></p>
+      <div class="actions">
+        <button type="button" class="btn btn-primary" data-action="new-fight">New fight</button>
+        <a class="btn btn-secondary" href="battledex.html">BattleDex</a>
+      </div>
     </section>
+
 
     <!-- View: error -->
     <section id="view-error" class="view" hidden role="alert" aria-labelledby="error-title">
@@ -63,6 +73,7 @@
     </section>
   </main>
 
+  <script src="dex-store.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

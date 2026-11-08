@@ -61,6 +61,8 @@
 - [x] Group inputs (e.g. "10 cows") still produce exactly one image for that side — handled in the prompt sent to the image API, not by looping
 - [x] Every image created must follow one shared art style template, appended verbatim to each fighter's image prompt (never left to the model's default style):
   > 16-bit pixel art illustration, retro video game sprite style, bold outlined pixels, vibrant limited color palette, dynamic action pose. Depicted as one cohesive image, centered, filling most of the frame, isolated on a plain solid color background with no scenery. No text, words, letters, numbers, logos, watermarks, UI elements, borders, or frames.
+- [x] Accurate characters: before drawing, Claude writes a visual description of each fighter, which goes into the image prompt. A character from literature is described as the book describes them (skin color, hair, build, clothing, signature attributes), following the book over film/TV versions. Other fictional characters use their canonical look. If the description call fails, the art is drawn from the name alone
+- [x] Random, different poses: each fight picks two different poses at random from a shared list, and the fighters face each other (A faces right, B faces left)
 - [x] Wire Fight button to call `/api/fight` instead of the fake timeout
 - [x] Moderation-blocked is its own distinct error case, separate from a generic image failure: when OpenAI's content moderation rejects an image request, the API returns its own error type and the UI shows its own message (e.g. that the fighter couldn't be drawn and to try a different one), never the generic "image failed" message
 - [x] Handle errors distinctly in the UI: verdict failure, generic image failure, moderation-blocked (see above), rate-limit 429 — don't hang on loading forever
@@ -74,12 +76,14 @@
 **Goal:** save individual fighters, view saved fighters.
 
 - [x] "Save" action per fighter: writes `{ label, image }` to a `localStorage` array — no fight/winner/reasoning data, just the fighter
-- [x] BattleDex view: grid of saved fighters, each a mini trading-card style (image on top, name below) — not clickable, card just displays label + image
+- [x] BattleDex page (its own file, `battledex.html`): grid of saved fighters, each a mini trading-card style (image on top, name below) — the card itself isn't clickable; its only controls are Pick and remove
+- [x] "BattleDex" button on the start page (input form) and the result page — opens the BattleDex page
 - [x] Delete/clear entries from BattleDex
-- [x] "Back to last fight" button on BattleDex view — jumps back to most recent result view (winner/reasoning/images still in memory)
-- [x] "New fight" button on BattleDex view — returns to input form view
+- [x] "Back to last fight" button on the BattleDex page — jumps back to the most recent result (kept in `sessionStorage` for the tab, since it's a separate page)
+- [x] "New fight" button on the BattleDex page — returns to the input form
+- [x] Pick saved fighters to fight with: a "Pick" option on each card (up to two) and a "Fight with picked" button. It opens the fight form with the picked fighters filled in (one pick fills Fighter A, two fill both). Picked fighters keep their saved art: the API skips image generation for those sides (`reuseArt`). Editing a picked name turns it into a new fighter with new art
 
-**Done when:** save a fighter, reload the page, it's still there in BattleDex; from BattleDex, can jump back to last fight result or start a new fight.
+**Done when:** save a fighter, reload the page, it's still there in BattleDex; the BattleDex opens from both the start page and the result page; from BattleDex, can jump back to last fight result or start a new fight.
 
 ---
 
@@ -87,9 +91,9 @@
 
 **Goal:** stay under `localStorage` quota (per brief §5).
 
-- [x] Before saving a fighter to BattleDex, draw its image to an off-screen `<canvas>`, resize down, re-export as JPEG/WebP at reduced quality
-- [x] Save the compressed data URI, not the original
-- [x] Test with several saved fighters that quota isn't hit quickly
+- [ ] Before saving a fighter to BattleDex, draw its image to an off-screen `<canvas>`, resize down, re-export as JPEG/WebP at reduced quality
+- [ ] Save the compressed data URI, not the original
+- [ ] Test with several saved fighters that quota isn't hit quickly
 
 **Done when:** ~10+ saved fighters don't blow `localStorage` quota.
 
@@ -99,10 +103,10 @@
 
 **Goal:** hand entire app to Claude Design for full visual overhaul — not just verdict UI polish, every view.
 
-- [x] Run all four views (form, loading, result, error) plus BattleDex through Claude Design for a complete visual pass — imported "Battleground Arcade" design project via the Claude Design MCP
-- [x] Winner card component: name, image, reasoning text, entry animation when result lands (winner border pulse, WINNER/DEFEAT tags, grayscale loser)
-- [x] Loading state redesigned to cover full wait for the fight call (VS spinner, rotating status text, animated verdict/art progress bar)
-- [x] Consistent visual language applied app-wide (typography, color, spacing, motion) — no leftover placeholder styling anywhere
+- [ ] Run all four views (form, loading, result, error) plus BattleDex through Claude Design for a complete visual pass — imported "Battleground Arcade" design project via the Claude Design MCP
+- [ ] Winner card component: name, image, reasoning text, entry animation when result lands (winner border pulse, WINNER/DEFEAT tags, grayscale loser)
+- [ ] Loading state redesigned to cover full wait for the fight call (VS spinner, rotating status text, animated verdict/art progress bar)
+- [ ] Consistent visual language applied app-wide (typography, color, spacing, motion) — no leftover placeholder styling anywhere
 
 **Done when:** full app feels like one designed product, no more placeholder styling on any view.
 
@@ -124,4 +128,3 @@
 ## Explicitly out of scope (per brief §4 — later, not now)
 
 - Real backend / cross-device BattleDex sync
-- Quick re-fight using saved BattleDex characters

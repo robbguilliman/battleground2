@@ -1,7 +1,10 @@
-// POST /api/fight  { fighterA, fighterB }  ->
+// POST /api/fight  { fighterA, fighterB, reuseArt? }  ->
 //   { winner: "A" | "B", reasoning, images: { A: Art, B: Art } }
 //   where Art is { src: "data:image/jpeg;base64,..." }
 //            or { error: { type: "image_blocked" | "image_failed", message } }
+//            or { reused: true } for a side listed in reuseArt (e.g. ["A"]): a
+//               fighter picked from the BattleDex, whose saved art the client
+//               already has, so no new image is generated for it.
 //
 // One call per fight: rate limit, validate, then the Claude verdict and both
 // fighters' OpenAI art run in parallel. A failed verdict fails the whole fight;
@@ -12,6 +15,7 @@ const { betaZodOutputFormat } = require("@anthropic-ai/sdk/helpers/beta/zod");
 const { z } = require("zod");
 const { JUDGE_SYSTEM_PROMPT, buildJudgeUserMessage } = require("./_lib/judge-prompt");
 const { generateFighterImage } = require("./_lib/fighter-art");
+const { describeFighters, pickPoses } = require("./_lib/fighter-looks");
 
 const MODEL = "claude-sonnet-5-5";
 const MAX_FIGHTER_LENGTH = 100; // matches the inputs' maxlength in index.html
@@ -90,7 +94,10 @@ function readFighters(body) {
   if (fighterA.length > MAX_FIGHTER_LENGTH || fighterB.length > MAX_FIGHTER_LENGTH) {
     return { error: `Fighter names can be at most ${MAX_FIGHTER_LENGTH} characters.` };
   }
-  return { fighterA, fighterB };
+  const reuseArt = new Set(
+    Array.isArray(body?.reuseArt) ? body.reuseArt.filter((side) => side === "A" || side === "B") : [],
+  );
+  return { fighterA, fighterB, reuseArt };
 }
 
 let client; // created on first use so a missing key fails per request, not at import
@@ -142,8 +149,10 @@ function verdictErrorResponse(err) {
 }
 
 // Never rejects: resolves to { src } or { error: { type, message } }.
-function settleArt(fighter, signal) {
-  return generateFighterImage(fighter, { signal }).then(
+// `looks` is a promise of { A, B } descriptions (or null); `side` is "A" or "B".
+async function settleArt(fighter, side, looks, pose, signal) {
+  const description = (await looks)?.[side];
+  return generateFighterImage(fighter, { signal, description, pose }).then(
     (src) => ({ src }),
     (err) => ({ error: { type: err.type || "image_failed", message: err.message } }),
   );
@@ -178,8 +187,15 @@ module.exports = async function handler(req, res) {
 
   // 3. Verdict and both images, in parallel.
   const art = new AbortController();
-  const artA = settleArt(input.fighterA, art.signal);
-  const artB = settleArt(input.fighterB, art.signal);
+  // Art: Claude first describes both fighters (so book characters look like the
+  // book), then each side is drawn in its own random pose. Sides reusing saved
+  // BattleDex art skip all of this.
+  const drawA = !input.reuseArt.has("A");
+  const drawB = !input.reuseArt.has("B");
+  const looks = drawA || drawB ? describeFighters(input.fighterA, input.fighterB, { signal: art.signal }) : null;
+  const poses = pickPoses();
+  const artA = drawA ? settleArt(input.fighterA, "A", looks, poses.A, art.signal) : Promise.resolve({ reused: true });
+  const artB = drawB ? settleArt(input.fighterB, "B", looks, poses.B, art.signal) : Promise.resolve({ reused: true });
 
   let verdict;
   try {

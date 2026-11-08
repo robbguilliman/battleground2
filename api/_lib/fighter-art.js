@@ -13,10 +13,16 @@ const ART_STYLE_TEMPLATE =
   "letters, numbers, logos, watermarks, UI elements, borders, or frames.";
 
 // Group inputs ("10 cows") are handled here in the prompt: one image showing the
-// whole group, never one image per unit.
-function buildImagePrompt(fighter) {
+// whole group, never one image per unit. `description` (from fighter-looks.js)
+// pins down the character's appearance; `pose` is that side's random pose.
+function buildImagePrompt(fighter, { description, pose } = {}) {
   return (
     `Character art of one fighter for an arcade fighting game. The fighter is: "${fighter}". ` +
+    (description
+      ? "Draw them exactly as described here, keeping every detail of skin color, hair, build, " +
+        `clothing and attributes: ${description} `
+      : "") +
+    (pose ? `Pose: ${pose}. ` : "") +
     "Show only this fighter, with no opponent. If the fighter is a group or a number of things, " +
     "show the whole group together as one unit in a single image.\n\n" +
     ART_STYLE_TEMPLATE
@@ -51,8 +57,9 @@ function isModerationBlock(err) {
 /**
  * Generates one fighter's art. Resolves to a data URI, or throws an ImageError.
  * `signal` lets the caller cancel the request (e.g. when the verdict fails).
+ * `description` and `pose` come from fighter-looks.js; both are optional.
  */
-async function generateFighterImage(fighter, { signal } = {}) {
+async function generateFighterImage(fighter, { signal, description, pose } = {}) {
   if (!process.env.OPENAI_API_KEY) {
     throw new ImageError("image_failed", "The artist isn't set up yet (missing API key).");
   }
@@ -61,7 +68,7 @@ async function generateFighterImage(fighter, { signal } = {}) {
     const result = await getClient().images.generate(
       {
         model: IMAGE_MODEL,
-        prompt: buildImagePrompt(fighter),
+        prompt: buildImagePrompt(fighter, { description, pose }),
         n: 1,
         size: "1024x1024",
         quality: "medium",

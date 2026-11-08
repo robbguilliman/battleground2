@@ -1,5 +1,7 @@
 // Stage 3: the Fight button calls /api/fight for the winner, reasoning and one
 // image per fighter. A side whose art failed shows a placeholder and a note.
+// Stage 4: fighters can be saved to the BattleDex (localStorage); the BattleDex
+// itself is its own page, battledex.html. Storage helpers come from dex-store.js.
 
 const views = {
   form: document.getElementById("view-form"),
@@ -47,7 +49,7 @@ class FightError extends Error {
   }
 }
 
-async function requestFight(fighterA, fighterB) {
+async function requestFight(fighterA, fighterB, reuseArt = []) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FIGHT_TIMEOUT_MS);
 
@@ -56,7 +58,7 @@ async function requestFight(fighterA, fighterB) {
     response = await fetch("/api/fight", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fighterA, fighterB }),
+      body: JSON.stringify({ fighterA, fighterB, reuseArt }),
       signal: controller.signal,
     });
   } catch (err) {
@@ -81,6 +83,10 @@ async function requestFight(fighterA, fighterB) {
   }
   throw new FightError("The judge couldn't decide", message || "The verdict failed. Please try again.");
 }
+
+// The fighters on screen, for the save buttons: { a: { label, image }, b: ... },
+// image null if that side has no art.
+let lastFight = null;
 
 function renderResult(fighterA, fighterB, verdict) {
   const winnerSide = verdict.winner === "A" ? "a" : "b";
@@ -113,7 +119,74 @@ function renderResult(fighterA, fighterB, verdict) {
         : artError.message || "The artist couldn't draw this fighter.";
   }
 
+  lastFight = {
+    a: { label: fighterA, image: verdict.images?.A?.src || null },
+    b: { label: fighterB, image: verdict.images?.B?.src || null },
+  };
+  // Remember the fight for this tab so battledex.html can link back to it.
+  saveLastFight({ fighterA, fighterB, verdict });
+  resetSaveButtons();
   showView("result");
+}
+
+// ---------------------------------------------------------------------------
+// Saving fighters to the BattleDex
+// ---------------------------------------------------------------------------
+const saveStatus = document.getElementById("save-status");
+
+function resetSaveButtons() {
+  saveStatus.textContent = "";
+  const savedImages = new Set(loadDex().map((f) => f.image));
+  for (const key of ["a", "b"]) {
+    const btn = document.getElementById(`save-${key}`);
+    const image = lastFight?.[key]?.image;
+    // Already in the BattleDex (e.g. after coming back from battledex.html)?
+    const saved = Boolean(image) && savedImages.has(image);
+    btn.disabled = !image || saved;
+    btn.textContent = !image ? "No art to save" : saved ? "Saved ✓" : "Save to BattleDex";
+  }
+}
+
+function saveFighter(key) {
+  const fighter = lastFight?.[key];
+  const btn = document.getElementById(`save-${key}`);
+  if (!fighter?.image) return;
+
+  const dex = loadDex();
+  dex.push({ id: newId(), label: fighter.label, image: fighter.image });
+  if (storeDex(dex)) {
+    btn.disabled = true;
+    btn.textContent = "Saved ✓";
+    saveStatus.textContent = `${fighter.label} was added to your BattleDex.`;
+  } else {
+    saveStatus.textContent =
+      "Your BattleDex is full. Remove some fighters to make room, then try again.";
+  }
+}
+
+document.querySelectorAll("[data-save]").forEach((btn) => {
+  btn.addEventListener("click", () => saveFighter(btn.dataset.save));
+});
+
+// ---------------------------------------------------------------------------
+// Fighters picked on battledex.html: prefill the form and reuse their saved art
+// ---------------------------------------------------------------------------
+const picks = { a: null, b: null }; // { label, image } per side, or null
+
+function setPick(key, pick) {
+  picks[key] = pick;
+  document.getElementById(`picked-${key}`).hidden = !pick;
+  const img = document.getElementById(`picked-img-${key}`);
+  if (pick) img.src = pick.image;
+  else img.removeAttribute("src");
+  if (pick) document.getElementById(`fighter-${key}`).value = pick.label;
+}
+
+// Editing a picked fighter's name makes it a new fighter, so its art is dropped.
+for (const key of ["a", "b"]) {
+  document.getElementById(`fighter-${key}`).addEventListener("input", (event) => {
+    if (picks[key] && event.target.value.trim() !== picks[key].label) setPick(key, null);
+  });
 }
 
 form.addEventListener("submit", async (event) => {
@@ -126,9 +199,16 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
+  const pickA = picks.a?.label === fighterA ? picks.a : null;
+  const pickB = picks.b?.label === fighterB ? picks.b : null;
+  const reuseArt = [pickA && "A", pickB && "B"].filter(Boolean);
+
   showView("loading");
   try {
-    const verdict = await requestFight(fighterA, fighterB);
+    const verdict = await requestFight(fighterA, fighterB, reuseArt);
+    // Picked fighters keep their saved BattleDex art instead of new art.
+    if (pickA) verdict.images = { ...verdict.images, A: { src: pickA.image } };
+    if (pickB) verdict.images = { ...verdict.images, B: { src: pickB.image } };
     renderResult(fighterA, fighterB, verdict);
   } catch (err) {
     if (err instanceof FightError) showError(err.message, err.title);
@@ -146,4 +226,18 @@ document.querySelectorAll('[data-action="new-fight"]').forEach((btn) => {
   });
 });
 
-showView("form");
+// battledex.html links to index.html#last-fight to reopen this tab's last fight,
+// and to index.html#picked after picking fighters to fight with.
+const restored = location.hash === "#last-fight" ? loadLastFight() : null;
+if (restored) {
+  renderResult(restored.fighterA, restored.fighterB, restored.verdict);
+} else {
+  if (location.hash === "#picked") {
+    const [first, second] = takePicks();
+    if (first) setPick("a", first);
+    if (second) setPick("b", second);
+    (second || !first ? document.querySelector('#fight-form [type="submit"]') : inputB).focus();
+  }
+  showView("form");
+}
+if (location.hash) history.replaceState(null, "", location.pathname); // a reload starts fresh
