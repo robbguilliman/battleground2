@@ -4,32 +4,67 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BattleDex · Battleground</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Chakra+Petch:wght@400;500;600;700&family=Press+Start+2P&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="site-header">
-    <h1><a href="index.html" class="home-link">Battleground</a></h1>
-    <p class="tagline">Two fighters enter. One leaves.</p>
-  </header>
-
   <main>
     <!-- BattleDex: saved fighters, read from localStorage -->
-    <section id="view-dex" class="view" aria-labelledby="dex-title">
-      <div class="dex-header">
-        <h2 id="dex-title">BattleDex</h2>
-        <p id="dex-count" class="dex-count"></p>
-      </div>
-      <p id="dex-empty" class="dex-empty" hidden>No fighters saved yet. Win (or lose) a fight and save a fighter to start your collection.</p>
-      <p id="dex-pick-hint" class="dex-pick-hint" hidden>Pick one or two fighters to send them into a new fight.</p>
-      <ul id="dex-grid" class="dex-grid"></ul>
-      <div class="dex-pick-bar" id="dex-pick-bar" hidden>
-        <p id="dex-pick-status" class="dex-pick-status" role="status"></p>
-        <button type="button" class="btn btn-primary" id="dex-fight" disabled>Fight with picked</button>
-      </div>
-      <div class="actions">
-        <a class="btn btn-primary" href="index.html">New fight</a>
-        <a class="btn btn-secondary" id="dex-back" href="index.html#last-fight" hidden>Back to last fight</a>
-        <button type="button" class="btn btn-danger" id="dex-clear" hidden>Clear all</button>
+    <section id="view-dex" class="view view-dex" aria-labelledby="dex-title">
+      <div class="wrap">
+        <div class="topbar">
+          <a href="index.html" class="logo logo-small home-link">Battleground</a>
+          <nav class="topbar-actions" aria-label="BattleDex actions">
+            <a class="chip chip-red" href="index.html">New fight</a>
+            <a class="chip chip-dark" id="dex-back" href="index.html#last-fight" hidden>Back to last fight</a>
+            <button type="button" class="chip chip-outline" id="dex-clear" hidden>Clear all</button>
+          </nav>
+        </div>
+
+        <div class="dex-header">
+          <div>
+            <h1 id="dex-title" class="dex-title">BattleDex</h1>
+            <p class="dex-subtitle" id="dex-subtitle">Select your fighters — pick one or two</p>
+          </div>
+          <p id="dex-count" class="dex-count"></p>
+        </div>
+
+        <ul id="dex-grid" class="dex-grid"></ul>
+
+        <div id="dex-empty" class="dex-empty" hidden>
+          <ul class="dex-grid dex-slots" aria-hidden="true">
+            <li></li><li></li><li></li><li></li><li></li><li></li>
+            <li></li><li></li><li></li><li></li><li></li><li></li>
+          </ul>
+          <div class="empty-card">
+            <p class="empty-blink" aria-hidden="true">Insert fighter</p>
+            <h2 class="empty-title">Your roster is empty</h2>
+            <p class="empty-text">No fighters saved yet. Win (or lose) a fight and save a fighter to start your collection.</p>
+            <a class="btn-arcade btn-red" href="index.html">Start a fight</a>
+          </div>
+        </div>
+
+        <div class="dex-pick-bar" id="dex-pick-bar" hidden>
+          <div class="pick-slots" aria-hidden="true">
+            <div class="pick-slot pick-slot-1">
+              <span class="pick-tag">P1</span>
+              <img class="pick-thumb" id="pick-thumb-1" alt="" hidden>
+              <span class="pick-thumb pick-thumb-empty" id="pick-empty-1"></span>
+              <span class="pick-name" id="pick-name-1"></span>
+            </div>
+            <span class="pick-vs">VS</span>
+            <div class="pick-slot pick-slot-2">
+              <span class="pick-tag">P2</span>
+              <img class="pick-thumb" id="pick-thumb-2" alt="" hidden>
+              <span class="pick-thumb pick-thumb-empty" id="pick-empty-2"></span>
+              <span class="pick-name" id="pick-name-2"></span>
+            </div>
+          </div>
+          <p id="dex-pick-status" class="visually-hidden" role="status"></p>
+          <button type="button" class="btn-arcade btn-gold" id="dex-fight" disabled>Fight with picked</button>
+        </div>
       </div>
     </section>
   </main>

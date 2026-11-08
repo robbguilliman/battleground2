@@ -2,6 +2,8 @@
 // image per fighter. A side whose art failed shows a placeholder and a note.
 // Stage 4: fighters can be saved to the BattleDex (localStorage); the BattleDex
 // itself is its own page, battledex.html. Storage helpers come from dex-store.js.
+// Stage 6: the "Battleground Arcade" look (style.css); this file fills in the
+// arcade extras: loading names, HP bars, winner/loser cards, the 429 countdown.
 
 const views = {
   form: document.getElementById("view-form"),
@@ -24,6 +26,8 @@ function showView(name) {
   }
   if (name === "loading") startLoadingMessages();
   else stopLoadingMessages();
+  stopCountdown(); // showError() restarts it for a rate limit
+  window.scrollTo(0, 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -50,6 +54,15 @@ const LOADING_MESSAGES = [
 ];
 const LOADING_INTERVAL_MS = 2200;
 const loadingText = document.getElementById("loading-text");
+
+// The segmented "power bar" on the loading view: 20 cells lighting up in a wave.
+document.getElementById("segbar").append(
+  ...Array.from({ length: 20 }, (_, i) => {
+    const seg = document.createElement("span");
+    seg.style.animationDelay = `${(i * 0.1).toFixed(1)}s`;
+    return seg;
+  }),
+);
 let loadingTimer = null;
 let loadingQueue = [];
 
@@ -82,10 +95,58 @@ function stopLoadingMessages() {
   loadingTimer = null;
 }
 
-function showError(message, title = "Chaos in the arena!") {
+function showError(message, title = "Chaos in the arena!", retryAfterSec = 0) {
   document.getElementById("error-title").textContent = title;
   document.getElementById("error-message").textContent = message;
   showView("error");
+  if (retryAfterSec > 0) startCountdown(retryAfterSec);
+}
+
+// ---------------------------------------------------------------------------
+// Rate-limit countdown on the error view ("CONTINUE? ARENA REOPENS IN 42").
+// The Try again button stays locked until the arena reopens.
+// ---------------------------------------------------------------------------
+const PIP_COUNT = 6;
+const countdownEl = document.getElementById("countdown");
+const countdownSecs = document.getElementById("countdown-secs");
+const countdownPips = document.getElementById("countdown-pips");
+const retryBtn = document.getElementById("error-retry");
+let countdownTimer = null;
+
+countdownPips.append(...Array.from({ length: PIP_COUNT }, () => document.createElement("span")));
+
+function renderCountdown(secs, total) {
+  countdownSecs.textContent = String(secs).padStart(2, "0");
+  countdownSecs.classList.remove("is-ticking");
+  void countdownSecs.offsetWidth; // restart the tick animation
+  countdownSecs.classList.add("is-ticking");
+  const lit = Math.ceil((secs / total) * PIP_COUNT);
+  [...countdownPips.children].forEach((pip, i) => pip.classList.toggle("is-lit", i < lit));
+  countdownPips.classList.toggle("is-low", lit <= 2);
+  const waiting = secs > 0;
+  retryBtn.disabled = waiting;
+  retryBtn.textContent = waiting ? "Hold tight…" : "Try again";
+}
+
+function startCountdown(total) {
+  stopCountdown();
+  const endsAt = Date.now() + total * 1000;
+  countdownEl.hidden = false;
+  const tick = () => {
+    const secs = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+    renderCountdown(secs, total);
+    if (secs === 0) stopCountdown({ keepVisible: true });
+  };
+  tick();
+  countdownTimer = setInterval(tick, 1000);
+}
+
+function stopCountdown({ keepVisible = false } = {}) {
+  clearInterval(countdownTimer);
+  countdownTimer = null;
+  if (!keepVisible) countdownEl.hidden = true;
+  retryBtn.disabled = false;
+  retryBtn.textContent = "Try again";
 }
 
 // Placeholder art: a solid-color SVG with the fighter's initial, as a data URI.
@@ -102,9 +163,10 @@ function placeholderImage(label, color) {
 // Calls the fight API. Resolves to { winner: "A" | "B", reasoning, images }, or throws
 // a FightError whose title/message are ready to show in the error view.
 class FightError extends Error {
-  constructor(title, message) {
+  constructor(title, message, retryAfterSec = 0) {
     super(message);
     this.title = title;
+    this.retryAfterSec = retryAfterSec; // > 0 only for our own rate limit
   }
 }
 
@@ -135,7 +197,8 @@ async function requestFight(fighterA, fighterB, reuseArt = []) {
 
   const message = data?.error?.message;
   if (response.status === 429) {
-    throw new FightError("Whoa, easy, champ!", message || "That's a lot of fights in a row. The arena needs a minute to breathe, then you're back on.");
+    const retryAfter = Math.min(Number(response.headers.get("Retry-After")) || 60, 120);
+    throw new FightError("Whoa, easy, champ!", message || "That's a lot of fights in a row. The arena needs a minute to breathe, then you're back on.", retryAfter);
   }
   if (response.status === 400) {
     throw new FightError("Hold it right there!", message || "Those fighters failed the weigh-in. Check the names and try again.");
@@ -153,17 +216,27 @@ function renderResult(fighterA, fighterB, verdict) {
   document.getElementById("result-reasoning").textContent = verdict.reasoning;
 
   const sides = [
-    { label: fighterA, art: verdict.images?.A, key: "a", color: "#3a6ea5" },
-    { label: fighterB, art: verdict.images?.B, key: "b", color: "#a53a3a" },
+    { label: fighterA, art: verdict.images?.A, key: "a", color: "#1d4f9e" },
+    { label: fighterB, art: verdict.images?.B, key: "b", color: "#9e2433" },
   ];
   for (const side of sides) {
+    const won = side.key === winnerSide;
     const img = document.getElementById(`image-${side.key}`);
     img.src = side.art?.src || placeholderImage(side.label, side.color);
     img.alt = side.label;
     document.getElementById(`label-${side.key}`).textContent = side.label;
-    document
-      .getElementById(`card-${side.key}`)
-      .classList.toggle("is-winner", side.key === winnerSide);
+    const card = document.getElementById(`card-${side.key}`);
+    card.classList.toggle("is-winner", won);
+    card.classList.toggle("is-loser", !won);
+
+    // Fighting-game HP bars across the top: the loser is drained to 0 HP.
+    const hp = document.getElementById(`hp-${side.key}`);
+    hp.classList.toggle("is-winner", won);
+    hp.classList.toggle("is-loser", !won);
+    const player = side.key === "a" ? "P1" : "P2";
+    document.getElementById(`hp-name-${side.key}`).textContent =
+      side.key === "a" ? `${player} · ${side.label}` : `${side.label} · ${player}`;
+    document.getElementById(`hp-status-${side.key}`).textContent = won ? "Wins" : "0 HP";
 
     // Image failures are per side: moderation-blocked and generic failures get
     // different messages (and styling); the verdict still shows either way.
@@ -202,6 +275,11 @@ function isSaved(image, dex) {
   return dex.some((f) => f.image === image || f.sourceKey === key);
 }
 
+// The count badge on the form's BattleDex button.
+function updateDexBadge() {
+  document.getElementById("dex-count-badge").textContent = String(loadDex().length);
+}
+
 function resetSaveButtons() {
   saveStatus.textContent = "";
   const dex = loadDex();
@@ -236,6 +314,7 @@ async function saveFighter(key) {
   if (storeDex(dex)) {
     btn.textContent = "Saved ✓";
     saveStatus.textContent = `${fighter.label} has joined your BattleDex!`;
+    updateDexBadge();
   } else {
     btn.disabled = false;
     btn.textContent = "Save to BattleDex";
@@ -260,12 +339,22 @@ function setPick(key, pick) {
   if (pick) img.src = pick.image;
   else img.removeAttribute("src");
   if (pick) document.getElementById(`fighter-${key}`).value = pick.label;
+  updateCount(key);
+}
+
+// "14/50" under each input.
+function updateCount(key) {
+  const length = document.getElementById(`fighter-${key}`).value.length;
+  const count = document.getElementById(`count-${key}`);
+  count.textContent = `${length}/${MAX_FIGHTER_LENGTH}`;
+  count.classList.toggle("is-full", length >= MAX_FIGHTER_LENGTH);
 }
 
 // Editing a picked fighter's name makes it a new fighter, so its art is dropped.
 for (const key of ["a", "b"]) {
   document.getElementById(`fighter-${key}`).addEventListener("input", (event) => {
     if (picks[key] && event.target.value.trim() !== picks[key].label) setPick(key, null);
+    updateCount(key);
   });
 }
 
@@ -289,6 +378,8 @@ form.addEventListener("submit", async (event) => {
   const pickB = picks.b?.label === fighterB ? picks.b : null;
   const reuseArt = [pickA && "A", pickB && "B"].filter(Boolean);
 
+  document.getElementById("loading-name-a").textContent = fighterA;
+  document.getElementById("loading-name-b").textContent = fighterB;
   showView("loading");
   try {
     const verdict = await requestFight(fighterA, fighterB, reuseArt);
@@ -297,7 +388,7 @@ form.addEventListener("submit", async (event) => {
     if (pickB) verdict.images = { ...verdict.images, B: { src: pickB.image } };
     renderResult(fighterA, fighterB, verdict);
   } catch (err) {
-    if (err instanceof FightError) showError(err.message, err.title);
+    if (err instanceof FightError) showError(err.message, err.title, err.retryAfterSec);
     else {
       console.error(err);
       showError("Something went haywire behind the scenes. Dust yourself off and try again!");
@@ -307,10 +398,16 @@ form.addEventListener("submit", async (event) => {
 
 document.querySelectorAll('[data-action="new-fight"]').forEach((btn) => {
   btn.addEventListener("click", () => {
+    updateDexBadge();
     showView("form");
     inputA.focus();
   });
 });
+
+updateDexBadge();
+updateCount("a");
+updateCount("b");
+window.addEventListener("pageshow", updateDexBadge); // back from battledex.html
 
 // battledex.html links to index.html#last-fight to reopen this tab's last fight,
 // and to index.html#picked after picking fighters to fight with.

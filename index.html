@@ -4,73 +4,191 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Battleground</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Chakra+Petch:wght@400;500;600;700&family=Press+Start+2P&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="site-header">
-    <h1>Battleground</h1>
-    <p class="tagline">Two fighters enter. One leaves.</p>
-  </header>
-
   <main>
     <!-- View: input form (only view visible on load) -->
-    <section id="view-form" class="view" aria-labelledby="form-title">
-      <h2 id="form-title" class="visually-hidden">Pick your fighters</h2>
-      <form id="fight-form" novalidate>
-        <div class="field">
-          <label for="fighter-a">Fighter A</label>
-          <input id="fighter-a" name="fighterA" type="text" maxlength="50" autocomplete="off" placeholder="e.g. a grizzly bear">
-          <p class="picked" id="picked-a" hidden><img alt="" id="picked-img-a"> From your BattleDex, keeping its saved art</p>
+    <section id="view-form" class="view view-form" aria-labelledby="form-title">
+      <div class="floor" aria-hidden="true"></div>
+      <div class="wrap">
+        <div class="topbar topbar-end">
+          <a class="chip chip-dex" href="battledex.html">BattleDex<span class="chip-count" id="dex-count-badge">0</span></a>
         </div>
-        <p class="vs" aria-hidden="true">VS</p>
-        <div class="field">
-          <label for="fighter-b">Fighter B</label>
-          <input id="fighter-b" name="fighterB" type="text" maxlength="50" autocomplete="off" placeholder="e.g. 10 angry geese">
-          <p class="picked" id="picked-b" hidden><img alt="" id="picked-img-b"> From your BattleDex, keeping its saved art</p>
-        </div>
-        <button type="submit" class="btn btn-primary">Fight!</button>
-      </form>
-      <a class="btn btn-secondary btn-block" href="battledex.html">BattleDex</a>
+        <header class="hero">
+          <h1 id="form-title" class="logo logo-hero">Battleground</h1>
+          <p class="tagline">Two fighters enter. One leaves.</p>
+        </header>
+
+        <form id="fight-form" novalidate>
+          <div class="matchup">
+            <div class="panel panel-a">
+              <div class="panel-head">
+                <span class="panel-tag">P1</span>
+                <label for="fighter-a" class="panel-title">Fighter A</label>
+              </div>
+              <div class="panel-body">
+                <input id="fighter-a" name="fighterA" type="text" maxlength="50" autocomplete="off" placeholder="e.g. a grizzly bear" aria-describedby="hint-a">
+                <div class="field-meta" id="hint-a">
+                  <span class="field-hint">Anything goes. Animals, heroes, armies.</span>
+                  <span class="field-count" id="count-a">0/50</span>
+                </div>
+                <p class="picked" id="picked-a" hidden><img alt="" id="picked-img-a"> From your BattleDex, keeping its saved art</p>
+              </div>
+            </div>
+
+            <div class="vs-diamond" aria-hidden="true"><span><b>VS</b></span></div>
+
+            <div class="panel panel-b">
+              <div class="panel-head">
+                <label for="fighter-b" class="panel-title">Fighter B</label>
+                <span class="panel-tag">P2</span>
+              </div>
+              <div class="panel-body">
+                <input id="fighter-b" name="fighterB" type="text" maxlength="50" autocomplete="off" placeholder="e.g. 10 angry geese" aria-describedby="hint-b">
+                <div class="field-meta" id="hint-b">
+                  <span class="field-hint">Anything goes. Animals, heroes, armies.</span>
+                  <span class="field-count" id="count-b">0/50</span>
+                </div>
+                <p class="picked" id="picked-b" hidden><img alt="" id="picked-img-b"> From your BattleDex, keeping its saved art</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="fight-cta">
+            <button type="submit" class="btn-arcade btn-fight">Fight!</button>
+            <p class="blink-hint" aria-hidden="true">Press Enter to ring the bell</p>
+          </div>
+        </form>
+      </div>
     </section>
 
     <!-- View: loading -->
-    <section id="view-loading" class="view" hidden aria-live="polite" aria-busy="true">
-      <div class="spinner" aria-hidden="true"></div>
-      <p id="loading-text" class="loading-text" aria-hidden="true">Judging the fight and drawing the fighters…</p>
-      <p class="visually-hidden">Judging the fight and drawing the fighters…</p>
+    <section id="view-loading" class="view view-loading" hidden aria-live="polite" aria-busy="true">
+      <div class="floor" aria-hidden="true"></div>
+      <div class="wrap">
+        <div class="topbar">
+          <span class="logo logo-small">Battleground</span>
+          <span class="topbar-note">Usually ~20 sec</span>
+        </div>
+        <h2 class="round-title" aria-hidden="true">Round 1</h2>
+        <div class="loading-matchup" aria-hidden="true">
+          <div class="mystery mystery-a">
+            <div class="mystery-box"><span>?</span><div class="scanbar"></div></div>
+            <p class="mystery-name" id="loading-name-a"></p>
+          </div>
+          <span class="vs-text">VS</span>
+          <div class="mystery mystery-b">
+            <div class="mystery-box"><span>?</span><div class="scanbar"></div></div>
+            <p class="mystery-name" id="loading-name-b"></p>
+          </div>
+        </div>
+        <div class="loading-bottom">
+          <div class="segbar" id="segbar" aria-hidden="true"></div>
+          <p id="loading-text" class="loading-text" aria-hidden="true">Judging the fight and drawing the fighters…</p>
+          <p class="visually-hidden">Judging the fight and drawing the fighters…</p>
+        </div>
+      </div>
     </section>
 
     <!-- View: result -->
-    <section id="view-result" class="view" hidden aria-labelledby="result-title">
-      <h2 id="result-title">Winner: <span id="result-winner"></span></h2>
-      <div class="fighters">
-        <figure class="fighter-card" id="card-a">
-          <img id="image-a" alt="">
-          <figcaption id="label-a"></figcaption>
-          <p class="art-error" id="art-error-a" hidden></p>
-          <button type="button" class="btn btn-small" id="save-a" data-save="a">Save to BattleDex</button>
-        </figure>
-        <figure class="fighter-card" id="card-b">
-          <img id="image-b" alt="">
-          <figcaption id="label-b"></figcaption>
-          <p class="art-error" id="art-error-b" hidden></p>
-          <button type="button" class="btn btn-small" id="save-b" data-save="b">Save to BattleDex</button>
-        </figure>
-      </div>
-      <p id="result-reasoning" class="reasoning"></p>
-      <p id="save-status" class="save-status" role="status"></p>
-      <div class="actions">
-        <button type="button" class="btn btn-primary" data-action="new-fight">New fight</button>
-        <a class="btn btn-secondary" href="battledex.html">BattleDex</a>
+    <section id="view-result" class="view view-result" hidden aria-labelledby="result-title">
+      <div class="floor" aria-hidden="true"></div>
+      <div class="wrap">
+        <div class="hp-row" aria-hidden="true">
+          <div class="hp hp-a" id="hp-a">
+            <div class="hp-bar"><div class="hp-fill"></div></div>
+            <div class="hp-labels"><span class="hp-name" id="hp-name-a"></span><span class="hp-status" id="hp-status-a"></span></div>
+          </div>
+          <div class="ko-box">K.O.</div>
+          <div class="hp hp-b" id="hp-b">
+            <div class="hp-bar"><div class="hp-fill"></div></div>
+            <div class="hp-labels"><span class="hp-status" id="hp-status-b"></span><span class="hp-name" id="hp-name-b"></span></div>
+          </div>
+        </div>
+
+        <div class="result-grid">
+          <div class="fighter-col fighter-col-a">
+            <div class="rays" aria-hidden="true"></div>
+            <figure class="fighter-card" id="card-a">
+              <span class="winner-tag" aria-hidden="true">★ Winner ★</span>
+              <div class="fighter-art">
+                <img id="image-a" alt="">
+                <span class="ko-stamp" aria-hidden="true">K.O.</span>
+              </div>
+              <figcaption id="label-a"></figcaption>
+            </figure>
+            <p class="art-error" id="art-error-a" hidden></p>
+            <button type="button" class="chip chip-light" id="save-a" data-save="a">Save to BattleDex</button>
+          </div>
+
+          <div class="verdict">
+            <h2 id="result-title" class="verdict-heading">
+              <span class="verdict-kicker">The winner is</span>
+              <span class="verdict-winner" id="result-winner"></span>
+            </h2>
+            <div class="verdict-box">
+              <p class="verdict-box-head">Judges' verdict</p>
+              <p id="result-reasoning" class="reasoning"></p>
+            </div>
+            <p id="save-status" class="save-status" role="status"></p>
+            <div class="actions">
+              <button type="button" class="btn-arcade btn-red" data-action="new-fight">New fight</button>
+              <a class="btn-arcade btn-dark" href="battledex.html">BattleDex</a>
+            </div>
+          </div>
+
+          <div class="fighter-col fighter-col-b">
+            <div class="rays" aria-hidden="true"></div>
+            <figure class="fighter-card" id="card-b">
+              <span class="winner-tag" aria-hidden="true">★ Winner ★</span>
+              <div class="fighter-art">
+                <img id="image-b" alt="">
+                <span class="ko-stamp" aria-hidden="true">K.O.</span>
+              </div>
+              <figcaption id="label-b"></figcaption>
+            </figure>
+            <p class="art-error" id="art-error-b" hidden></p>
+            <button type="button" class="chip chip-light" id="save-b" data-save="b">Save to BattleDex</button>
+          </div>
+        </div>
       </div>
     </section>
 
-
     <!-- View: error -->
-    <section id="view-error" class="view" hidden role="alert" aria-labelledby="error-title">
-      <h2 id="error-title">Something went wrong</h2>
-      <p id="error-message"></p>
-      <button type="button" class="btn btn-primary" data-action="new-fight">Try again</button>
+    <section id="view-error" class="view view-error" hidden role="alert" aria-labelledby="error-title">
+      <div class="floor floor-red" aria-hidden="true"></div>
+      <div class="hazard hazard-top" aria-hidden="true"></div>
+      <div class="hazard hazard-bottom" aria-hidden="true"></div>
+      <div class="wrap">
+        <div class="topbar">
+          <span class="logo logo-small">Battleground</span>
+          <span class="topbar-alert" aria-hidden="true">● System alert</span>
+        </div>
+        <div class="error-body">
+          <div class="warning-banner" aria-hidden="true">
+            <span class="warning-diamond"><span>!</span></span>
+            <span class="warning-text">Warning</span>
+            <span class="warning-diamond"><span>!</span></span>
+          </div>
+          <h2 id="error-title" class="error-title">Something went wrong</h2>
+          <p id="error-message" class="error-message"></p>
+        </div>
+        <div class="countdown" id="countdown" hidden aria-hidden="true">
+          <div class="countdown-label">
+            <span class="countdown-continue">Continue?</span>
+            <span class="countdown-sub">Arena reopens in</span>
+          </div>
+          <div class="countdown-box"><span id="countdown-secs">00</span></div>
+          <div class="countdown-pips" id="countdown-pips" aria-hidden="true"></div>
+        </div>
+        <div class="error-actions">
+          <button type="button" class="btn-arcade btn-red btn-retry" id="error-retry" data-action="new-fight">Try again</button>
+        </div>
+      </div>
     </section>
   </main>
 
