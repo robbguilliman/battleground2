@@ -1,6 +1,7 @@
 // Storage shared by index.html and battledex.html.
 //
-// BattleDex: saved fighters in localStorage, as an array of { id, label, image }
+// BattleDex: saved fighters in localStorage, as an array of
+// { id, label, image, sourceKey } (image is a compressed copy; see below)
 // (no fight data). Last fight: the most recent result in sessionStorage, so the
 // BattleDex page can send you back to it. It lasts for the browser tab only.
 
@@ -71,4 +72,56 @@ function takePicks() {
   } catch {
     return [];
   }
+}
+
+// ---------------------------------------------------------------------------
+// Image compression (Stage 5): fighters are saved as small WebP/JPEG data URIs
+// so the BattleDex stays well under the ~5 MB localStorage quota.
+// ---------------------------------------------------------------------------
+const DEX_IMAGE_SIZE = 512; // px, longest side: 2x the biggest card, still crisp
+const DEX_IMAGE_QUALITY = 0.8;
+const DEX_COMPRESS_ABOVE = 120_000; // characters; saved images bigger than this get compressed
+
+/**
+ * Draws a data URI onto an off-screen canvas at most DEX_IMAGE_SIZE px wide/tall
+ * and re-exports it as WebP (or JPEG where the browser can't encode WebP).
+ * Resolves to whichever is smaller, the compressed or the original.
+ */
+function compressImage(src, { maxSize = DEX_IMAGE_SIZE, quality = DEX_IMAGE_QUALITY } = {}) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, maxSize / Math.max(img.naturalWidth, img.naturalHeight));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        let out = canvas.toDataURL("image/webp", quality);
+        // Browsers that can't encode WebP silently return PNG; use JPEG instead.
+        if (!out.startsWith("data:image/webp")) out = canvas.toDataURL("image/jpeg", quality);
+        resolve(out.length < src.length ? out : src);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    img.onerror = () => reject(new Error("Couldn't load the image to compress it."));
+    img.src = src;
+  });
+}
+
+// Short fingerprint of an image's original data URI (FNV-1a), stored as
+// `sourceKey` so the fight page can tell a fighter is already saved even though
+// the BattleDex holds a compressed copy.
+function imageKey(dataUri) {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < dataUri.length; i++) {
+    hash ^= dataUri.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `${(hash >>> 0).toString(16)}-${dataUri.length}`;
 }

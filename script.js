@@ -134,31 +134,52 @@ function renderResult(fighterA, fighterB, verdict) {
 // ---------------------------------------------------------------------------
 const saveStatus = document.getElementById("save-status");
 
+// Already in the BattleDex? The BattleDex holds compressed copies, so match on
+// the original's fingerprint (sourceKey), or on the image itself for fighters
+// picked from the BattleDex, whose art already is the saved copy.
+function isSaved(image, dex) {
+  if (!image) return false;
+  const key = imageKey(image);
+  return dex.some((f) => f.image === image || f.sourceKey === key);
+}
+
 function resetSaveButtons() {
   saveStatus.textContent = "";
-  const savedImages = new Set(loadDex().map((f) => f.image));
+  const dex = loadDex();
   for (const key of ["a", "b"]) {
     const btn = document.getElementById(`save-${key}`);
     const image = lastFight?.[key]?.image;
-    // Already in the BattleDex (e.g. after coming back from battledex.html)?
-    const saved = Boolean(image) && savedImages.has(image);
+    const saved = isSaved(image, dex);
     btn.disabled = !image || saved;
     btn.textContent = !image ? "No art to save" : saved ? "Saved ✓" : "Save to BattleDex";
   }
 }
 
-function saveFighter(key) {
+async function saveFighter(key) {
   const fighter = lastFight?.[key];
   const btn = document.getElementById(`save-${key}`);
   if (!fighter?.image) return;
 
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+
+  // Stage 5: save a small compressed copy, not the full-size original.
+  let image;
+  try {
+    image = await compressImage(fighter.image);
+  } catch (err) {
+    console.error("Compression failed, saving the original:", err);
+    image = fighter.image;
+  }
+
   const dex = loadDex();
-  dex.push({ id: newId(), label: fighter.label, image: fighter.image });
+  dex.push({ id: newId(), label: fighter.label, image, sourceKey: imageKey(fighter.image) });
   if (storeDex(dex)) {
-    btn.disabled = true;
     btn.textContent = "Saved ✓";
     saveStatus.textContent = `${fighter.label} was added to your BattleDex.`;
   } else {
+    btn.disabled = false;
+    btn.textContent = "Save to BattleDex";
     saveStatus.textContent =
       "Your BattleDex is full. Remove some fighters to make room, then try again.";
   }

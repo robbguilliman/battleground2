@@ -24,6 +24,25 @@ function togglePick(id) {
   if (picked.includes(id)) picked = picked.filter((p) => p !== id);
   else if (picked.length < MAX_PICKS) picked.push(id);
   renderDex();
+shrinkOldFighters();
+
+// Fighters saved before Stage 5 were stored full size. Compress them once, in
+// place, to free up storage. Keeps their fingerprint so "Saved ✓" still works.
+async function shrinkOldFighters() {
+  const big = loadDex().filter((f) => f.image.length > DEX_COMPRESS_ABOVE);
+  if (!big.length) return;
+  const shrunk = new Map();
+  for (const f of big) {
+    try {
+      shrunk.set(f.id, { image: await compressImage(f.image), sourceKey: f.sourceKey || imageKey(f.image) });
+    } catch (err) {
+      console.error(`Couldn't compress ${f.label}:`, err);
+    }
+  }
+  // Re-read so a remove done meanwhile isn't undone.
+  const dex = loadDex().map((f) => (shrunk.has(f.id) ? { ...f, ...shrunk.get(f.id) } : f));
+  if (storeDex(dex)) renderDex();
+}
 }
 
 function renderDex() {
@@ -63,6 +82,25 @@ function renderDex() {
         picked = picked.filter((p) => p !== fighter.id);
         storeDex(loadDex().filter((f) => f.id !== fighter.id));
         renderDex();
+shrinkOldFighters();
+
+// Fighters saved before Stage 5 were stored full size. Compress them once, in
+// place, to free up storage. Keeps their fingerprint so "Saved ✓" still works.
+async function shrinkOldFighters() {
+  const big = loadDex().filter((f) => f.image.length > DEX_COMPRESS_ABOVE);
+  if (!big.length) return;
+  const shrunk = new Map();
+  for (const f of big) {
+    try {
+      shrunk.set(f.id, { image: await compressImage(f.image), sourceKey: f.sourceKey || imageKey(f.image) });
+    } catch (err) {
+      console.error(`Couldn't compress ${f.label}:`, err);
+    }
+  }
+  // Re-read so a remove done meanwhile isn't undone.
+  const dex = loadDex().map((f) => (shrunk.has(f.id) ? { ...f, ...shrunk.get(f.id) } : f));
+  if (storeDex(dex)) renderDex();
+}
       });
 
       li.append(img, name, pick, remove);
@@ -82,6 +120,25 @@ document.getElementById("dex-clear").addEventListener("click", () => {
     picked = [];
     storeDex([]);
     renderDex();
+shrinkOldFighters();
+
+// Fighters saved before Stage 5 were stored full size. Compress them once, in
+// place, to free up storage. Keeps their fingerprint so "Saved ✓" still works.
+async function shrinkOldFighters() {
+  const big = loadDex().filter((f) => f.image.length > DEX_COMPRESS_ABOVE);
+  if (!big.length) return;
+  const shrunk = new Map();
+  for (const f of big) {
+    try {
+      shrunk.set(f.id, { image: await compressImage(f.image), sourceKey: f.sourceKey || imageKey(f.image) });
+    } catch (err) {
+      console.error(`Couldn't compress ${f.label}:`, err);
+    }
+  }
+  // Re-read so a remove done meanwhile isn't undone.
+  const dex = loadDex().map((f) => (shrunk.has(f.id) ? { ...f, ...shrunk.get(f.id) } : f));
+  if (storeDex(dex)) renderDex();
+}
   }
 });
 
@@ -102,6 +159,44 @@ document.getElementById("dex-back").hidden = !loadLastFight();
 window.addEventListener("pageshow", renderDex);
 window.addEventListener("storage", (event) => {
   if (event.key === DEX_KEY) renderDex();
+shrinkOldFighters();
+
+// Fighters saved before Stage 5 were stored full size. Compress them once, in
+// place, to free up storage. Keeps their fingerprint so "Saved ✓" still works.
+async function shrinkOldFighters() {
+  const big = loadDex().filter((f) => f.image.length > DEX_COMPRESS_ABOVE);
+  if (!big.length) return;
+  const shrunk = new Map();
+  for (const f of big) {
+    try {
+      shrunk.set(f.id, { image: await compressImage(f.image), sourceKey: f.sourceKey || imageKey(f.image) });
+    } catch (err) {
+      console.error(`Couldn't compress ${f.label}:`, err);
+    }
+  }
+  // Re-read so a remove done meanwhile isn't undone.
+  const dex = loadDex().map((f) => (shrunk.has(f.id) ? { ...f, ...shrunk.get(f.id) } : f));
+  if (storeDex(dex)) renderDex();
+}
 });
 
 renderDex();
+shrinkOldFighters();
+
+// Fighters saved before Stage 5 were stored full size. Compress them once, in
+// place, to free up storage. Keeps their fingerprint so "Saved ✓" still works.
+async function shrinkOldFighters() {
+  const big = loadDex().filter((f) => f.image.length > DEX_COMPRESS_ABOVE);
+  if (!big.length) return;
+  const shrunk = new Map();
+  for (const f of big) {
+    try {
+      shrunk.set(f.id, { image: await compressImage(f.image), sourceKey: f.sourceKey || imageKey(f.image) });
+    } catch (err) {
+      console.error(`Couldn't compress ${f.label}:`, err);
+    }
+  }
+  // Re-read so a remove done meanwhile isn't undone.
+  const dex = loadDex().map((f) => (shrunk.has(f.id) ? { ...f, ...shrunk.get(f.id) } : f));
+  if (storeDex(dex)) renderDex();
+}

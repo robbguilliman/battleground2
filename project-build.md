@@ -91,9 +91,9 @@
 
 **Goal:** stay under `localStorage` quota (per brief §5).
 
-- [ ] Before saving a fighter to BattleDex, draw its image to an off-screen `<canvas>`, resize down, re-export as JPEG/WebP at reduced quality
-- [ ] Save the compressed data URI, not the original
-- [ ] Test with several saved fighters that quota isn't hit quickly
+- [x] Before saving a fighter to BattleDex, draw its image to an off-screen `<canvas>`, resize down, re-export as JPEG/WebP at reduced quality
+- [x] Save the compressed data URI, not the original
+- [x] Test with several saved fighters that quota isn't hit quickly
 
 **Done when:** ~10+ saved fighters don't blow `localStorage` quota.
 
