@@ -7,6 +7,11 @@
 // Battle stats: each result shows both fighters' stats and the odds the server
 // rolled the winner from; saved fighters keep their stats and a win/loss record.
 
+// 8-bit music and sound effects (sound.js); silent no-ops if it didn't load.
+const sound = window.Sound || { music() {}, fanfare() {}, jingle() {}, sfx() {}, enabled: () => false };
+// The warm-up brawl on the loading view (brawl.js).
+const brawl = window.Brawl || { start() {}, stop() {}, finish: () => Promise.resolve() };
+
 const views = {
   form: document.getElementById("view-form"),
   loading: document.getElementById("view-loading"),
@@ -26,10 +31,20 @@ function showView(name) {
   for (const [key, el] of Object.entries(views)) {
     el.hidden = key !== name;
   }
-  if (name === "loading") startLoadingMessages();
-  else stopLoadingMessages();
+  if (name === "loading") {
+    startLoadingMessages();
+    brawl.start();
+  } else {
+    stopLoadingMessages();
+    brawl.stop();
+  }
   stopCountdown(); // showError() restarts it for a rate limit
   window.scrollTo(0, 0);
+  // Each screen has its own music; the result's fanfare is started by whoever
+  // shows the result (a fresh fight gets the fanfare, a re-shown one doesn't).
+  if (name === "form") sound.music("title");
+  else if (name === "loading") sound.music("loading");
+  else if (name === "error") sound.jingle("error");
 }
 
 // ---------------------------------------------------------------------------
@@ -97,6 +112,15 @@ function stopLoadingMessages() {
   loadingTimer = null;
 }
 
+// Loading cards show a picked fighter's saved art; new fighters stay a "?".
+function setLoadingArt(key, src) {
+  const img = document.getElementById(`loading-art-${key}`);
+  img.hidden = !src;
+  if (src) img.src = src;
+  else img.removeAttribute("src");
+  img.parentElement.querySelector(".mystery-q").hidden = Boolean(src);
+}
+
 function showError(message, title = "Chaos in the arena!", retryAfterSec = 0) {
   document.getElementById("error-title").textContent = title;
   document.getElementById("error-message").textContent = message;
@@ -137,6 +161,7 @@ function startCountdown(total) {
   const tick = () => {
     const secs = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
     renderCountdown(secs, total);
+    sound.sfx(secs > 0 ? "tick" : "ding");
     if (secs === 0) stopCountdown({ keepVisible: true });
   };
   tick();
@@ -429,6 +454,7 @@ async function saveFighter(key) {
   if (storeDex(dex)) {
     btn.textContent = "Saved ✓";
     saveStatus.textContent = `${fighter.label} has joined your BattleDex!`;
+    sound.sfx("save");
     updateDexBadge();
   } else {
     btn.disabled = false;
@@ -499,6 +525,9 @@ form.addEventListener("submit", async (event) => {
 
   document.getElementById("loading-name-a").textContent = fighterA;
   document.getElementById("loading-name-b").textContent = fighterB;
+  setLoadingArt("a", pickA?.image);
+  setLoadingArt("b", pickB?.image);
+  sound.sfx("bell");
   showView("loading");
   try {
     const verdict = await requestFight(fighterA, fighterB, reuseArt, knownStats);
@@ -509,7 +538,10 @@ form.addEventListener("submit", async (event) => {
     // re-shown (#last-fight), so a fight is counted once.
     if (pickA?.id) recordFightResult(pickA.id, verdict.winner === "A", verdict.stats?.A);
     if (pickB?.id) recordFightResult(pickB.id, verdict.winner === "B", verdict.stats?.B);
+    // The real winner lands the warm-up brawl's finishing blow, then the reveal.
+    await brawl.finish(verdict.winner === "B" ? "b" : "a");
     renderResult(fighterA, fighterB, verdict);
+    sound.fanfare(Boolean(verdict.upset)); // then the result loop
   } catch (err) {
     if (err instanceof FightError) showError(err.message, err.title, err.retryAfterSec);
     else {
@@ -521,6 +553,7 @@ form.addEventListener("submit", async (event) => {
 
 document.querySelectorAll('[data-action="new-fight"]').forEach((btn) => {
   btn.addEventListener("click", () => {
+    sound.sfx("click");
     updateDexBadge();
     showView("form");
     inputA.focus();
@@ -537,6 +570,7 @@ window.addEventListener("pageshow", updateDexBadge); // back from battledex.html
 const restored = location.hash === "#last-fight" ? loadLastFight() : null;
 if (restored) {
   renderResult(restored.fighterA, restored.fighterB, restored.verdict);
+  sound.music("result");
 } else {
   if (location.hash === "#picked") {
     const [first, second] = takePicks();

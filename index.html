@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <button type="button" class="sound-toggle" data-sound-toggle aria-pressed="true">♪ On</button>
   <main>
     <!-- View: input form (only view visible on load) -->
     <section id="view-form" class="view view-form" aria-labelledby="form-title">
@@ -74,17 +75,39 @@
           <span class="logo logo-small">Battleground</span>
           <span class="topbar-note">Usually ~20 sec</span>
         </div>
-        <h2 class="round-title" aria-hidden="true">Round 1</h2>
-        <div class="loading-matchup" aria-hidden="true">
-          <div class="mystery mystery-a">
-            <div class="mystery-box"><span>?</span><div class="scanbar"></div></div>
-            <p class="mystery-name" id="loading-name-a"></p>
+        <h2 class="round-title" id="round-title" aria-hidden="true">Round 1</h2>
+        <p class="brawl-call" id="brawl-call" aria-hidden="true"></p>
+        <!-- The warm-up brawl (brawl.js): the two cards trade hits and blocks
+             while the real verdict loads. It never hints at the winner. -->
+        <div class="loading-matchup" id="brawl" aria-hidden="true">
+          <div class="mystery mystery-a" id="brawler-a">
+            <div class="brawler">
+              <div class="brawl-hp"><div class="brawl-hp-ghost"></div><div class="brawl-hp-fill"></div></div>
+              <div class="mystery-box">
+                <span class="mystery-q">?</span>
+                <img class="mystery-art" id="loading-art-a" alt="" hidden>
+                <div class="scanbar"></div>
+                <div class="crack"></div>
+                <div class="hit-flash"></div>
+              </div>
+              <p class="mystery-name" id="loading-name-a"></p>
+            </div>
           </div>
           <span class="vs-text">VS</span>
-          <div class="mystery mystery-b">
-            <div class="mystery-box"><span>?</span><div class="scanbar"></div></div>
-            <p class="mystery-name" id="loading-name-b"></p>
+          <div class="mystery mystery-b" id="brawler-b">
+            <div class="brawler">
+              <div class="brawl-hp"><div class="brawl-hp-ghost"></div><div class="brawl-hp-fill"></div></div>
+              <div class="mystery-box">
+                <span class="mystery-q">?</span>
+                <img class="mystery-art" id="loading-art-b" alt="" hidden>
+                <div class="scanbar"></div>
+                <div class="crack"></div>
+                <div class="hit-flash"></div>
+              </div>
+              <p class="mystery-name" id="loading-name-b"></p>
+            </div>
           </div>
+          <div class="brawl-fx" id="brawl-fx"></div>
         </div>
         <div class="loading-bottom">
           <div class="segbar" id="segbar" aria-hidden="true"></div>
@@ -203,7 +226,9 @@
     </section>
   </main>
 
+  <script src="sound.js"></script>
   <script src="dex-store.js"></script>
+  <script src="brawl.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

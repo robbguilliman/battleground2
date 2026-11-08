@@ -3,6 +3,10 @@
 // toggle and "remove". Picking one or two fighters and pressing "Fight with
 // picked" sends them to index.html. Storage helpers come from dex-store.js.
 
+// 8-bit music and sound effects (sound.js); silent no-ops if it didn't load.
+const sound = window.Sound || { music() {}, sfx() {}, enabled: () => false };
+sound.music("title");
+
 const dexGrid = document.getElementById("dex-grid");
 const MAX_PICKS = 2;
 let picked = []; // ids of picked fighters, in the order they were picked
@@ -34,10 +38,47 @@ function updatePickBar(dex) {
 }
 
 function togglePick(id) {
-  if (picked.includes(id)) picked = picked.filter((p) => p !== id);
-  else if (picked.length < MAX_PICKS) picked.push(id);
+  if (picked.includes(id)) {
+    picked = picked.filter((p) => p !== id);
+    sound.sfx("unpick");
+  } else if (picked.length < MAX_PICKS) {
+    picked.push(id);
+    sound.sfx("pick");
+  }
+  const focused = document.activeElement?.closest?.(".dex-card")?.dataset.id;
   renderDex();
+  // Re-rendering replaces the buttons; keep keyboard focus on the same card.
+  if (focused) dexGrid.querySelector(`.dex-card[data-id="${focused}"] .dex-card-pick`)?.focus();
 }
+
+// ---------------------------------------------------------------------------
+// Character-select feel: a blip each time you move to a different fighter
+// (mouse or keyboard), and arrow keys to move between cards.
+// ---------------------------------------------------------------------------
+let hoveredCard = null; // id of the fighter last moved to (cards get rebuilt on every render)
+function enterCard(card) {
+  if (!card || card.dataset.id === hoveredCard) return;
+  hoveredCard = card.dataset.id;
+  sound.sfx("blip");
+}
+dexGrid.addEventListener("pointerover", (event) => enterCard(event.target.closest(".dex-card")));
+dexGrid.addEventListener("pointerleave", () => (hoveredCard = null));
+dexGrid.addEventListener("focusin", (event) => enterCard(event.target.closest(".dex-card")));
+
+dexGrid.addEventListener("keydown", (event) => {
+  const moves = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: "up", ArrowDown: "down" };
+  if (!(event.key in moves)) return;
+  const cards = [...dexGrid.querySelectorAll(".dex-card")];
+  const index = cards.indexOf(event.target.closest(".dex-card"));
+  if (index < 0) return;
+  const columns = cards.filter((c) => c.offsetTop === cards[0].offsetTop).length || 1;
+  const move = moves[event.key];
+  const step = move === "up" ? -columns : move === "down" ? columns : move;
+  const target = cards[index + step];
+  if (!target) return;
+  event.preventDefault();
+  target.querySelector(".dex-card-pick").focus();
+});
 
 function renderDex() {
   const dex = loadDex();
@@ -46,6 +87,7 @@ function renderDex() {
     ...dex.map((fighter) => {
       const li = document.createElement("li");
       li.className = "dex-card";
+      li.dataset.id = fighter.id;
 
       const img = document.createElement("img");
       img.src = fighter.image;
@@ -83,6 +125,7 @@ function renderDex() {
       remove.textContent = "×";
       remove.setAttribute("aria-label", `Remove ${fighter.label} from BattleDex`);
       remove.addEventListener("click", () => {
+        sound.sfx("remove");
         picked = picked.filter((p) => p !== fighter.id);
         storeDex(loadDex().filter((f) => f.id !== fighter.id));
         renderDex();
@@ -113,6 +156,7 @@ function renderDex() {
 
 document.getElementById("dex-clear").addEventListener("click", () => {
   if (confirm("Send every fighter in your BattleDex home for good? There's no rematch for this one.")) {
+    sound.sfx("remove");
     picked = [];
     storeDex([]);
     renderDex();
@@ -125,7 +169,10 @@ document.getElementById("dex-fight").addEventListener("click", () => {
     .map((id) => dex.find((f) => f.id === id))
     .filter(Boolean)
     .map(({ id, label, image, stats }) => ({ id, label, image, stats }));
-  if (picks.length && savePicks(picks)) location.href = "index.html#picked";
+  if (!picks.length || !savePicks(picks)) return;
+  // Ring the bell, and give it a moment to be heard before the page changes.
+  sound.sfx("bell");
+  setTimeout(() => (location.href = "index.html#picked"), sound.enabled() ? 350 : 0);
 });
 
 // Fighters saved before Stage 5 were stored full size. Compress them once, in

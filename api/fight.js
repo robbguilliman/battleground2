@@ -24,6 +24,7 @@ const { z } = require("zod");
 const { JUDGE_SYSTEM_PROMPT, buildJudgeUserMessage } = require("./_lib/judge-prompt");
 const { generateFighterImage } = require("./_lib/fighter-art");
 const { describeFighters, pickPoses } = require("./_lib/fighter-looks");
+const { createRateLimiter, clientIp } = require("./_lib/rate-limit");
 
 const MODEL = "claude-sonnet-5-5";
 const MAX_FIGHTER_LENGTH = 50; // matches MAX_FIGHTER_LENGTH in script.js and the inputs' maxlength
@@ -107,42 +108,9 @@ function rollWinner(verdict) {
   return { winner, odds: { A: tidy(chanceA), B: tidy(100 - chanceA) } };
 }
 
-// ---------------------------------------------------------------------------
-// Rate limiting: 5 requests per minute per IP, sliding window.
-// In-memory, so it's per server instance: exact under `vercel dev`, best-effort
-// on Vercel where requests can land on different instances.
-// ---------------------------------------------------------------------------
+// Rate limiting: 5 requests per minute per IP, sliding window (api/_lib/rate-limit.js).
 const RATE_LIMIT = 5;
-const RATE_WINDOW_MS = 60_000;
-const hits = new Map(); // ip -> timestamps of requests inside the window
-
-function checkRateLimit(ip) {
-  const now = Date.now();
-  const recent = (hits.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
-
-  if (recent.length >= RATE_LIMIT) {
-    hits.set(ip, recent);
-    const retryAfterSec = Math.ceil((RATE_WINDOW_MS - (now - recent[0])) / 1000);
-    return { allowed: false, retryAfterSec };
-  }
-
-  recent.push(now);
-  hits.set(ip, recent);
-
-  // Drop idle IPs so the map doesn't grow forever.
-  if (hits.size > 5000) {
-    for (const [key, times] of hits) {
-      if (now - times[times.length - 1] >= RATE_WINDOW_MS) hits.delete(key);
-    }
-  }
-  return { allowed: true };
-}
-
-function clientIp(req) {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (forwarded) return String(forwarded).split(",")[0].trim();
-  return req.headers["x-real-ip"] || req.socket?.remoteAddress || "unknown";
-}
+const checkRateLimit = createRateLimiter({ limit: RATE_LIMIT, windowMs: 60_000 });
 
 // ---------------------------------------------------------------------------
 

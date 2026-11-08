@@ -238,6 +238,34 @@ a.logo:hover {
   color: var(--ink);
 }
 
+/* Sound on/off. Fixed in the corner on the fight page (every view), in the
+   top bar on the BattleDex. */
+.sound-toggle {
+  position: fixed;
+  left: 16px;
+  bottom: 46px;
+  z-index: 60;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 3px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--gold);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.sound-toggle.is-off,
+.chip-sound.is-off {
+  color: var(--muted);
+}
+
+.chip-sound {
+  color: var(--gold);
+}
+
 /* Big arcade buttons */
 .btn-arcade {
   display: inline-flex;
@@ -509,10 +537,11 @@ a.logo:hover {
    --------------------------------------------------------------------------- */
 .view-loading {
   background: radial-gradient(ellipse at 50% 40%, #33266e 0%, var(--deep) 58%, var(--night) 100%);
+  overflow-x: clip; /* knockbacks and hit bursts never cause a sideways scroll */
 }
 
 .round-title {
-  margin: 44px 0 0;
+  margin: 28px 0 0;
   text-align: center;
   font-family: var(--font-display);
   font-weight: 400;
@@ -522,24 +551,125 @@ a.logo:hover {
   text-shadow: 5px 5px 0 var(--ink);
 }
 
+/* Live commentary from the brawl ("A GRIZZLY BEAR connects!"). The box keeps
+   its height when empty so the cards never jump. */
+.brawl-call {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 720px);
+  min-height: 52px;
+  margin: 18px auto 0;
+  padding: 8px 16px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: clamp(14px, 2vw, 22px);
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--text);
+  text-shadow: 3px 3px 0 var(--ink);
+  background: var(--ink);
+  border: 3px solid var(--gold);
+  box-shadow: 0 0 0 3px var(--ink), 6px 6px 0 3px var(--ink);
+  overflow-wrap: anywhere;
+}
+
 .loading-matchup {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 300px) minmax(80px, 200px) minmax(0, 300px);
   justify-content: center;
   align-items: center;
-  margin-top: 44px;
+  margin-top: 28px;
 }
 
 .mystery {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  position: relative;
   min-width: 0;
   animation: bob 1.6s ease-in-out infinite;
 }
 
+.mystery-a {
+  --side: var(--blue);
+}
+
 .mystery-b {
+  --side: var(--red);
   animation-delay: 0.8s;
+}
+
+/* Hit-stop: both cards' idle bob freezes for a beat when a blow lands. */
+.loading-matchup.is-hitstop .mystery {
+  animation-play-state: paused;
+}
+
+/* Charging a special move: the card's frame strobes in its side's color. */
+.mystery.is-charging .mystery-box {
+  animation: charge 0.16s steps(2) infinite;
+}
+
+/* The loser after the finishing blow, just before the result appears. */
+.mystery.is-ko {
+  filter: grayscale(1) brightness(0.75);
+  transition: filter 0.3s;
+}
+
+/* The attacker draws in front of the defender. */
+.mystery.is-attacking {
+  z-index: 2;
+}
+
+/* The part that lunges and shakes (brawl.js); .mystery keeps the idle bob. */
+.brawler {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* --hp and --ghost (0-100) are set by brawl.js. The white ghost bar trails
+   behind the real one and drains a moment after each hit. */
+.brawl-hp {
+  --hp: 100;
+  --ghost: 100;
+  position: relative;
+  height: 20px;
+  background: var(--ink);
+  border: 3px solid var(--ink);
+  box-shadow: 0 0 0 2px var(--line);
+}
+
+.brawl-hp-fill,
+.brawl-hp-ghost {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+}
+
+.brawl-hp-fill {
+  width: calc((100% - 6px) * var(--hp) / 100);
+  background: var(--side);
+  transition: width 0.3s steps(6), background-color 0.3s;
+}
+
+.brawl-hp-ghost {
+  width: calc((100% - 6px) * var(--ghost) / 100);
+  background: var(--text);
+  transition: width 0.45s ease-in;
+}
+
+.mystery-a .brawl-hp-fill,
+.mystery-a .brawl-hp-ghost {
+  left: 3px;
+}
+
+/* P2's bar drains toward the center, like the result HP bars. */
+.mystery-b .brawl-hp-fill,
+.mystery-b .brawl-hp-ghost {
+  right: 3px;
+}
+
+.mystery[data-damage="2"] .brawl-hp-fill {
+  background: var(--gold);
 }
 
 .mystery-box {
@@ -553,6 +683,53 @@ a.logo:hover {
   font-family: var(--font-display);
   font-size: clamp(64px, 11vw, 140px);
   text-shadow: 6px 6px 0 var(--ink);
+}
+
+/* A picked fighter's saved art fills the card instead of the "?". */
+.mystery-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Cracks build up as the card takes damage (data-damage 1, then 2). */
+.crack {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  transition: opacity 0.15s;
+}
+
+.mystery-b .crack {
+  transform: scaleX(-1); /* so the two cards don't crack identically */
+}
+
+.mystery[data-damage="1"] .crack,
+.mystery[data-damage="2"] .crack {
+  opacity: 1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none' fill='none'%3E%3Cpath d='M0 20 L14 27 L22 21 L34 35 L47 31 L55 42 M22 21 L25 9 M34 35 L30 47' stroke='%230a0714' stroke-width='4'/%3E%3Cpath d='M0 20 L14 27 L22 21 L34 35 L47 31 L55 42 M22 21 L25 9 M34 35 L30 47' stroke='%23f6f3ff' stroke-width='1.6'/%3E%3C/svg%3E");
+}
+
+.mystery[data-damage="2"] .crack {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none' fill='none'%3E%3Cpath d='M100 72 L84 66 L76 75 L63 60 L50 68 L41 56 L33 63 M76 75 L80 92 M63 60 L68 47 M50 68 L48 84' stroke='%230a0714' stroke-width='4'/%3E%3Cpath d='M100 72 L84 66 L76 75 L63 60 L50 68 L41 56 L33 63 M76 75 L80 92 M63 60 L68 47 M50 68 L48 84' stroke='%23f6f3ff' stroke-width='1.6'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none' fill='none'%3E%3Cpath d='M0 20 L14 27 L22 21 L34 35 L47 31 L55 42 M22 21 L25 9 M34 35 L30 47' stroke='%230a0714' stroke-width='4'/%3E%3Cpath d='M0 20 L14 27 L22 21 L34 35 L47 31 L55 42 M22 21 L25 9 M34 35 L30 47' stroke='%23f6f3ff' stroke-width='1.6'/%3E%3C/svg%3E");
+}
+
+/* White-then-red flash when a hit lands (animated from brawl.js). */
+.hit-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  background: #fff;
 }
 
 .mystery-a .mystery-box {
@@ -1784,6 +1961,225 @@ a.logo:hover {
 /* ---------------------------------------------------------------------------
    Animations
    --------------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------------
+   Warm-up brawl effects (brawl.js spawns these and they remove themselves)
+   --------------------------------------------------------------------------- */
+.brawl-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.fx-burst {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: clamp(96px, 15vw, 170px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%) rotate(var(--rot, 0deg));
+  filter: drop-shadow(4px 4px 0 var(--ink));
+  animation: burst-pop 0.75s ease-out forwards;
+}
+
+.fx-burst::before,
+.fx-burst::after {
+  content: "";
+  position: absolute;
+  clip-path: polygon(50% 0%, 58% 19%, 73% 10%, 72% 28%, 93% 25%, 79% 42%, 96% 50%, 83% 59%, 93% 75%, 73% 73%, 73% 90%, 58% 81%, 50% 100%, 42% 80%, 27% 90%, 29% 71%, 7% 75%, 17% 59%, 4% 50%, 18% 41%, 7% 25%, 27% 27%, 27% 10%, 42% 20%);
+}
+
+.fx-burst::before {
+  inset: 0;
+  background: var(--red);
+}
+
+.fx-burst::after {
+  inset: 13%;
+  background: var(--gold);
+}
+
+.fx-burst span {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: clamp(14px, 2.2vw, 24px);
+  line-height: 1;
+  color: var(--red);
+  -webkit-text-stroke: 1px var(--ink);
+  text-shadow: 2px 2px 0 var(--ink);
+  white-space: nowrap;
+}
+
+.fx-burst.is-big {
+  width: clamp(130px, 21vw, 240px);
+  animation-duration: 0.95s;
+}
+
+.fx-burst.is-big span {
+  font-size: clamp(17px, 2.8vw, 32px);
+  color: var(--text);
+}
+
+.fx-burst.is-block::before {
+  background: var(--blue);
+}
+
+.fx-burst.is-block::after {
+  background: #dff1ff;
+}
+
+.fx-burst.is-block span {
+  color: var(--blue);
+}
+
+.fx-burst.is-miss {
+  width: clamp(80px, 12vw, 130px);
+}
+
+.fx-burst.is-miss::before {
+  background: #6f6890;
+}
+
+.fx-burst.is-miss::after {
+  background: #c9c4e0;
+}
+
+.fx-burst.is-miss span {
+  font-size: clamp(12px, 1.7vw, 18px);
+  color: #4a4470;
+}
+
+.fx-burst.is-ko {
+  width: clamp(150px, 24vw, 280px);
+}
+
+.fx-burst.is-ko::after {
+  background: var(--text);
+}
+
+.fx-burst.is-ko span {
+  font-size: clamp(26px, 4vw, 46px);
+  color: var(--red);
+}
+
+.fx-combo {
+  position: absolute;
+  font-family: var(--font-pixel);
+  font-size: clamp(10px, 1.4vw, 15px);
+  color: var(--gold);
+  text-shadow: 2px 2px 0 var(--red), 4px 4px 0 var(--ink);
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  animation: combo-pop 0.85s ease-out forwards;
+}
+
+/* The special move's energy ball (moved across the arena by brawl.js). */
+.fx-orb {
+  position: absolute;
+  width: clamp(28px, 4vw, 46px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 32%, var(--orb) 62%);
+  box-shadow: 0 0 0 3px var(--ink), 0 0 26px 10px var(--orb);
+  transform: translate(-50%, -50%);
+}
+
+.fx-orb.is-a {
+  --orb: var(--blue);
+}
+
+.fx-orb.is-b {
+  --orb: var(--red);
+}
+
+.fx-spark {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--gold);
+  box-shadow: 0 0 0 2px var(--ink);
+  transform: translate(-50%, -50%);
+  animation: spark-fly 0.5s ease-out forwards;
+}
+
+.fx-spark:nth-child(3n) {
+  background: var(--text);
+}
+
+.fx-spark.is-block {
+  background: #dff1ff;
+}
+
+.fx-dmg {
+  position: absolute;
+  font-family: var(--font-pixel);
+  font-size: clamp(12px, 1.6vw, 18px);
+  color: var(--red);
+  text-shadow: 3px 3px 0 var(--ink);
+  transform: translate(-50%, 0);
+  animation: dmg-rise 0.9s ease-out forwards;
+}
+
+.fx-dmg.is-big {
+  font-size: clamp(16px, 2.2vw, 26px);
+  color: var(--gold);
+}
+
+.fx-shield {
+  position: absolute;
+  aspect-ratio: 1;
+  border: 6px solid #dff1ff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px var(--blue), 0 0 28px 6px rgba(46, 139, 255, 0.7), inset 0 0 24px rgba(223, 241, 255, 0.6);
+  transform: translate(-50%, -50%);
+  animation: shield-pop 0.45s ease-out forwards;
+}
+
+.fx-flash {
+  position: absolute;
+  inset: -40px;
+  background: #fff;
+  animation: screen-flash 0.25s ease-out forwards;
+}
+
+@keyframes burst-pop {
+  0% { transform: translate(-50%, -50%) rotate(var(--rot, 0deg)) scale(0.2); opacity: 1; }
+  18% { transform: translate(-50%, -50%) rotate(var(--rot, 0deg)) scale(1.18); }
+  30% { transform: translate(-50%, -50%) rotate(var(--rot, 0deg)) scale(1); }
+  75% { transform: translate(-50%, -50%) rotate(var(--rot, 0deg)) scale(1.04); opacity: 1; }
+  100% { transform: translate(-50%, -50%) rotate(var(--rot, 0deg)) scale(1.12); opacity: 0; }
+}
+@keyframes spark-fly {
+  to { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.3); opacity: 0; }
+}
+@keyframes dmg-rise {
+  0% { transform: translate(-50%, 8px) scale(0.6); opacity: 0; }
+  20% { transform: translate(-50%, 0) scale(1.2); opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: translate(-50%, -44px) scale(1); opacity: 0; }
+}
+@keyframes shield-pop {
+  0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0.95; }
+  100% { transform: translate(-50%, -50%) scale(1.08); opacity: 0; }
+}
+@keyframes combo-pop {
+  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
+  20% { transform: translate(-50%, -50%) scale(1.25); opacity: 1; }
+  35% { transform: translate(-50%, -50%) scale(1); }
+  75% { opacity: 1; }
+  100% { transform: translate(-50%, -90%) scale(1); opacity: 0; }
+}
+@keyframes charge {
+  0% { box-shadow: 0 0 0 4px var(--side), 8px 8px 0 4px var(--ink), 0 0 18px 6px var(--side); }
+  100% { box-shadow: 0 0 0 4px #fff, 8px 8px 0 4px var(--ink), 0 0 42px 16px var(--side); }
+}
+@keyframes screen-flash {
+  from { opacity: 0.45; }
+  to { opacity: 0; }
+}
+
 @keyframes glow {
   0%, 100% { box-shadow: 0 0 0 4px var(--ink), 0 0 28px 6px rgba(255, 208, 46, 0.55), 10px 10px 0 4px var(--ink); }
   50% { box-shadow: 0 0 0 4px var(--ink), 0 0 64px 22px rgba(255, 208, 46, 0.9), 10px 10px 0 4px var(--ink); }

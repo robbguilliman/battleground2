@@ -125,6 +125,26 @@
 
 **Done when:** lopsided fights come out lopsided (Doctor Strange vs 10 snails, a nuclear bomb vs 50 million toddlers), crowds win when numbers really matter, and saved fighters keep consistent stats.
 
+## Stage 6c — 8-bit sound
+
+- [x] Original chiptune loops for the title, loading and result screens, synthesized in the browser (no API, no files)
+- [x] Victory fanfare when a fight resolves (a twisted version for upsets), then the result loop
+- [x] Sound effects: fight bell, save, countdown ticks, error alarm, BattleDex card blips, pick/unpick/remove
+- [x] Sound on by default, starts on the first click, mute toggle remembered
+
+## Stage 6d — Loading brawl
+
+- [x] While a fight loads, the two fighter cards trade attacks and blocks: lunges, shakes, hit flashes, comic hit words (POW!, CRASH!, CLANG!), sparks, damage numbers and cracks
+- [x] Small HP bars on the loading cards; whoever is ahead usually takes the next hit, and when either runs low both refill and a new round starts, so the warm-up never hints at the winner
+- [x] Picked BattleDex fighters show their saved art on the loading card; new fighters stay a "?"
+- [x] Synthesized whoosh, hit, smash and clang effects; stops instantly when the result or an error arrives; still cards under reduced motion
+- [x] Hit-stop freeze on every blow, trailing white damage bar, combo counter, dodges ("WHIFF!"), pitch-varied hit sounds
+- [x] Special move: a charge-up glow, then an energy ball across the arena; heavy blows get a camera punch (shake plus zoom)
+- [x] Live commentary with the fighters' names mixed in with the quips
+- [x] When the verdict arrives, the real winner lands a K.O. blow before the result appears
+- [x] Commentary moved into its own banner under the round title so it reads as live play-by-play
+- [ ] ~~Spoken announcer~~ tried with browser speech, then OpenAI text-to-speech; both too flat, so it was removed
+
 ---
 
 ## Stage 7 — Final QA
