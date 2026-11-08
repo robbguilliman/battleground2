@@ -121,15 +121,25 @@
               </div>
               <figcaption id="label-a"></figcaption>
             </figure>
+            <div class="stat-panel stat-panel-a" id="stats-a" hidden></div>
             <p class="art-error" id="art-error-a" hidden></p>
             <button type="button" class="chip chip-light" id="save-a" data-save="a">Save to BattleDex</button>
           </div>
 
           <div class="verdict">
             <h2 id="result-title" class="verdict-heading">
-              <span class="verdict-kicker">The winner is</span>
+              <span class="verdict-kicker" id="result-kicker">The winner is</span>
               <span class="verdict-winner" id="result-winner"></span>
             </h2>
+            <p class="upset-badge" id="upset-badge" hidden></p>
+            <div class="odds" id="result-odds" hidden>
+              <p class="odds-head">Win chance</p>
+              <div class="odds-bar" aria-hidden="true"><span class="odds-fill" id="odds-fill"></span></div>
+              <div class="odds-labels">
+                <span class="odds-a"><span class="visually-hidden">Fighter A: </span><span id="odds-a"></span></span>
+                <span class="odds-b"><span class="visually-hidden">Fighter B: </span><span id="odds-b"></span></span>
+              </div>
+            </div>
             <div class="verdict-box">
               <p class="verdict-box-head">Judges' verdict</p>
               <p id="result-reasoning" class="reasoning"></p>
@@ -151,6 +161,7 @@
               </div>
               <figcaption id="label-b"></figcaption>
             </figure>
+            <div class="stat-panel stat-panel-b" id="stats-b" hidden></div>
             <p class="art-error" id="art-error-b" hidden></p>
             <button type="button" class="chip chip-light" id="save-b" data-save="b">Save to BattleDex</button>
           </div>

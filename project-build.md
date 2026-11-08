@@ -114,6 +114,19 @@
 
 ---
 
+## Stage 6b — Battle stats
+
+**Goal:** realistic verdicts backed by numbers.
+
+- [x] Judge rates each fighter: Battle Value (0-10,000, counts group size), strength/speed/durability/skill/special (0-100), strengths and weaknesses
+- [x] Realistic odds, never 0% or 100%; the server rolls the winner from them, so huge upsets are possible but astronomically rare
+- [x] Result view shows both stat panels, the odds, an UPSET badge, and HP based on the odds
+- [x] BattleDex saves stats and a win/loss record; picked fighters keep their stats and add each fight to their record
+
+**Done when:** lopsided fights come out lopsided (Doctor Strange vs 10 snails, a nuclear bomb vs 50 million toddlers), crowds win when numbers really matter, and saved fighters keep consistent stats.
+
+---
+
 ## Stage 7 — Final QA
 
 **Goal:** ship it.

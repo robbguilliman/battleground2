@@ -56,6 +56,15 @@ function renderDex() {
       name.className = "dex-card-name";
       name.textContent = fighter.label;
 
+      // Battle Value and win/loss record
+      const meta = document.createElement("p");
+      meta.className = "dex-card-meta";
+      const bv = document.createElement("span");
+      bv.textContent = fighter.stats ? `BV ${fighter.stats.battleValue.toLocaleString("en-US")}` : "BV ?";
+      const record = document.createElement("span");
+      record.textContent = recordText(fighter);
+      meta.append(bv, record);
+
       const order = picked.indexOf(fighter.id) + 1; // 1 = P1, 2 = P2, 0 = not picked
       const isPicked = order > 0;
       li.classList.toggle(`is-picked-${order}`, isPicked);
@@ -79,7 +88,7 @@ function renderDex() {
         renderDex();
       });
 
-      li.append(img, name, pick, remove);
+      li.append(img, name, meta, pick, remove);
       if (isPicked) {
         const tag = document.createElement("span");
         tag.className = "dex-card-tag";
@@ -115,7 +124,7 @@ document.getElementById("dex-fight").addEventListener("click", () => {
   const picks = picked
     .map((id) => dex.find((f) => f.id === id))
     .filter(Boolean)
-    .map(({ label, image }) => ({ label, image }));
+    .map(({ id, label, image, stats }) => ({ id, label, image, stats }));
   if (picks.length && savePicks(picks)) location.href = "index.html#picked";
 });
 

@@ -1,8 +1,10 @@
 // Storage shared by index.html and battledex.html.
 //
 // BattleDex: saved fighters in localStorage, as an array of
-// { id, label, image, sourceKey } (image is a compressed copy; see below)
-// (no fight data). Last fight: the most recent result in sessionStorage, so the
+// { id, label, image, sourceKey, stats, wins, losses } (image is a compressed
+// copy; see below). stats is the fighter's battle stats from the fight it was
+// saved after (missing for fighters saved before stats existed); wins/losses
+// count that fight plus every later fight it was picked for. Last fight: the most recent result in sessionStorage, so the
 // BattleDex page can send you back to it. It lasts for the browser tab only.
 
 const DEX_KEY = "battleground.battledex";
@@ -29,6 +31,23 @@ function storeDex(fighters) {
   }
 }
 
+// Adds one fight's result to a saved fighter's record, and gives it stats if it
+// has none yet. Returns false if the fighter is gone or storage is full.
+function recordFightResult(id, won, stats) {
+  const dex = loadDex();
+  const fighter = dex.find((f) => f.id === id);
+  if (!fighter) return false;
+  fighter.wins = (fighter.wins || 0) + (won ? 1 : 0);
+  fighter.losses = (fighter.losses || 0) + (won ? 0 : 1);
+  if (!fighter.stats && stats) fighter.stats = stats;
+  return storeDex(dex);
+}
+
+// "W-L" record text, e.g. "3W 1L".
+function recordText(fighter) {
+  return `${fighter.wins || 0}W ${fighter.losses || 0}L`;
+}
+
 function newId() {
   return window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
@@ -52,7 +71,7 @@ function loadLastFight() {
 }
 
 // Picks: up to two BattleDex fighters chosen on battledex.html to fight with,
-// handed to index.html through sessionStorage as [{ label, image }, ...].
+// handed to index.html through sessionStorage as [{ id, label, image, stats }, ...].
 function savePicks(picks) {
   try {
     sessionStorage.setItem(PICKS_KEY, JSON.stringify(picks));
@@ -68,7 +87,7 @@ function takePicks() {
   try {
     const parsed = JSON.parse(sessionStorage.getItem(PICKS_KEY) || "[]");
     sessionStorage.removeItem(PICKS_KEY);
-    return Array.isArray(parsed) ? parsed.filter((f) => f && f.label && f.image).slice(0, 2) : [];
+    return Array.isArray(parsed) ? parsed.filter((f) => f && f.label && f.image).slice(0, 2) : []; // { id, label, image, stats }
   } catch {
     return [];
   }

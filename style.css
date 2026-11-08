@@ -928,6 +928,180 @@ a.logo:hover {
   display: block;
 }
 
+/* Battle stats under each fighter card */
+.stat-panel {
+  width: 100%;
+  padding: 10px 12px 12px;
+  background: var(--field);
+  border: 4px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink);
+}
+
+.stat-bv {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.stat-bv strong {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--gold);
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.stat-bars {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stat-bars li {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 26px;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+}
+
+.stat-bars abbr {
+  text-decoration: none;
+  color: var(--muted);
+}
+
+.stat-bars b {
+  font-weight: 400;
+  text-align: right;
+}
+
+.stat-bar {
+  height: 10px;
+  background: var(--dim);
+  border: 2px solid var(--ink);
+}
+
+.stat-bar span {
+  display: block;
+  height: 100%;
+}
+
+.stat-panel-a .stat-bar span {
+  background: var(--blue);
+}
+
+.stat-panel-b .stat-bar span {
+  background: var(--red);
+}
+
+.stat-traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stat-traits li {
+  padding: 3px 7px;
+  border: 2px solid var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.stat-traits li span[aria-hidden] {
+  margin-right: 5px;
+  font-size: 10px;
+}
+
+.stat-traits .is-strength {
+  background: rgba(46, 220, 120, 0.16);
+  color: #8ff0b4;
+}
+
+.stat-traits .is-weakness {
+  background: rgba(255, 59, 79, 0.16);
+  color: #ff9aa6;
+}
+
+/* Odds bar and UPSET badge under the winner's name */
+.odds {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 14px;
+}
+
+.odds-head {
+  margin: 0 0 6px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.odds-bar {
+  display: block;
+  height: 16px;
+  background: var(--red);
+  border: 3px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+.odds-fill {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  max-width: calc(100% - 2px);
+  background: var(--blue);
+}
+
+.odds-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.odds-a {
+  color: var(--blue);
+  text-align: left;
+}
+
+.odds-b {
+  color: var(--red);
+  text-align: right;
+}
+
+.upset-badge {
+  margin: 8px 0 0;
+  padding: 6px 12px 4px;
+  background: var(--red);
+  border: 3px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+  font-family: var(--font-display);
+  font-size: 18px;
+  line-height: 1.2;
+  color: var(--gold);
+  text-shadow: 2px 2px 0 var(--ink);
+  text-transform: uppercase;
+  animation: flash 1s steps(1) 4;
+}
+
 .art-error {
   margin: 0;
   max-width: 100%;
@@ -1328,6 +1502,23 @@ a.logo:hover {
   line-height: 1.15;
   color: var(--ink);
   overflow-wrap: anywhere;
+}
+
+.dex-card-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 4px 6px;
+  background: var(--ink);
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  line-height: 1.4;
+  color: var(--gold);
+}
+
+.dex-card-meta span:last-child {
+  color: var(--text);
 }
 
 .dex-card-pick {
@@ -1757,6 +1948,26 @@ a.logo:hover {
   }
   .reasoning {
     font-size: 16px;
+  }
+  .stat-panel {
+    padding: 8px;
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+  .stat-bv {
+    flex-direction: column;
+    gap: 4px;
+    font-size: 8px;
+  }
+  .stat-bv strong {
+    font-size: 20px;
+  }
+  .stat-bars li {
+    grid-template-columns: 26px minmax(0, 1fr) 20px;
+    gap: 5px;
+    font-size: 8px;
+  }
+  .stat-traits li {
+    font-size: 11px;
   }
   .actions .btn-arcade {
     flex: 1 1 140px;

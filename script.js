@@ -4,6 +4,8 @@
 // itself is its own page, battledex.html. Storage helpers come from dex-store.js.
 // Stage 6: the "Battleground Arcade" look (style.css); this file fills in the
 // arcade extras: loading names, HP bars, winner/loser cards, the 429 countdown.
+// Battle stats: each result shows both fighters' stats and the odds the server
+// rolled the winner from; saved fighters keep their stats and a win/loss record.
 
 const views = {
   form: document.getElementById("view-form"),
@@ -170,7 +172,7 @@ class FightError extends Error {
   }
 }
 
-async function requestFight(fighterA, fighterB, reuseArt = []) {
+async function requestFight(fighterA, fighterB, reuseArt = [], knownStats = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FIGHT_TIMEOUT_MS);
 
@@ -179,7 +181,7 @@ async function requestFight(fighterA, fighterB, reuseArt = []) {
     response = await fetch("/api/fight", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fighterA, fighterB, reuseArt }),
+      body: JSON.stringify({ fighterA, fighterB, reuseArt, knownStats }),
       signal: controller.signal,
     });
   } catch (err) {
@@ -206,9 +208,107 @@ async function requestFight(fighterA, fighterB, reuseArt = []) {
   throw new FightError("No decision!", message || "The judges' table is in chaos. Ring the bell and try again!");
 }
 
-// The fighters on screen, for the save buttons: { a: { label, image }, b: ... },
-// image null if that side has no art.
+// The fighters on screen, for the save buttons:
+// { a: { label, image, stats, won }, b: ... }, image null if that side has no art.
 let lastFight = null;
+
+// ---------------------------------------------------------------------------
+// Battle stats and odds
+// ---------------------------------------------------------------------------
+const STAT_ROWS = [
+  ["strength", "STR"],
+  ["speed", "SPD"],
+  ["durability", "DUR"],
+  ["skill", "SKL"],
+  ["special", "SPC"],
+];
+
+// A win chance in percent as text: "87%", "99.9999%", or "1 in 2,000,000" for
+// long shots. Never shows 0% or 100%.
+function formatChance(p) {
+  if (p < 1) return `1 in ${Math.round(100 / p).toLocaleString("en-US")}`;
+  if (p <= 99) return `${Math.round(p)}%`;
+  const decimals = Math.min(10, Math.max(1, Math.ceil(-Math.log10(100 - p) - 1e-9)));
+  const factor = 10 ** decimals;
+  return `${(Math.floor(p * factor + 1e-6) / factor).toFixed(decimals)}%`;
+}
+
+// The stat panel under a fighter card: Battle Value, five bars, traits.
+function renderStats(key, stats) {
+  const panel = document.getElementById(`stats-${key}`);
+  panel.hidden = !stats;
+  if (!stats) return panel.replaceChildren();
+
+  const bv = document.createElement("p");
+  bv.className = "stat-bv";
+  const bvLabel = document.createElement("span");
+  bvLabel.textContent = "Battle value";
+  const bvValue = document.createElement("strong");
+  bvValue.textContent = stats.battleValue.toLocaleString("en-US");
+  bv.append(bvLabel, bvValue);
+
+  const bars = document.createElement("ul");
+  bars.className = "stat-bars";
+  for (const [field, short] of STAT_ROWS) {
+    const li = document.createElement("li");
+    const name = document.createElement("abbr");
+    name.title = field;
+    name.textContent = short;
+    const bar = document.createElement("span");
+    bar.className = "stat-bar";
+    bar.setAttribute("aria-hidden", "true");
+    const fill = document.createElement("span");
+    fill.style.width = `${stats[field]}%`;
+    bar.append(fill);
+    const value = document.createElement("b");
+    value.textContent = String(stats[field]);
+    li.append(name, bar, value);
+    bars.append(li);
+  }
+
+  const traits = document.createElement("ul");
+  traits.className = "stat-traits";
+  for (const [list, cls, mark, label] of [
+    [stats.strengths, "is-strength", "▲", "Strength: "],
+    [stats.weaknesses, "is-weakness", "▼", "Weakness: "],
+  ]) {
+    for (const text of list || []) {
+      const li = document.createElement("li");
+      li.className = cls;
+      const icon = document.createElement("span");
+      icon.setAttribute("aria-hidden", "true");
+      icon.textContent = mark;
+      const sr = document.createElement("span");
+      sr.className = "visually-hidden";
+      sr.textContent = label;
+      li.append(icon, sr, document.createTextNode(text));
+      traits.append(li);
+    }
+  }
+  panel.replaceChildren(bv, bars, traits);
+}
+
+// The odds bar under the winner's name, and the UPSET badge for long shots.
+function renderOdds(verdict, winnerSide) {
+  const odds = verdict.odds;
+  document.getElementById("result-odds").hidden = !odds;
+  const badge = document.getElementById("upset-badge");
+  const upset = Boolean(odds && verdict.upset);
+  badge.hidden = !upset;
+  document.getElementById("result-kicker").textContent = upset ? "Upset! The winner is" : "The winner is";
+  if (!odds) return;
+  document.getElementById("odds-a").textContent = formatChance(odds.A);
+  document.getElementById("odds-b").textContent = formatChance(odds.B);
+  document.getElementById("odds-fill").style.width = `${odds.A}%`;
+  const winnerChance = winnerSide === "a" ? odds.A : odds.B;
+  badge.textContent = winnerChance < 1 ? `★ Beat 1-in-${Math.round(100 / winnerChance).toLocaleString("en-US")} odds ★` : `★ Beat ${formatChance(winnerChance)} odds ★`;
+}
+
+// Winner's HP left: a blowout leaves them nearly full, a coin flip or an upset
+// leaves them hanging on.
+function winnerHp(chance) {
+  return Math.max(3, Math.min(95, 8 + (chance - 50) * 1.74));
+}
 
 function renderResult(fighterA, fighterB, verdict) {
   const winnerSide = verdict.winner === "A" ? "a" : "b";
@@ -237,6 +337,10 @@ function renderResult(fighterA, fighterB, verdict) {
     document.getElementById(`hp-name-${side.key}`).textContent =
       side.key === "a" ? `${player} · ${side.label}` : `${side.label} · ${player}`;
     document.getElementById(`hp-status-${side.key}`).textContent = won ? "Wins" : "0 HP";
+    const chance = verdict.odds?.[side.key.toUpperCase()];
+    hp.querySelector(".hp-fill").style.width = won && chance != null ? `${winnerHp(chance)}%` : "";
+
+    renderStats(side.key, verdict.stats?.[side.key.toUpperCase()]);
 
     // Image failures are per side: moderation-blocked and generic failures get
     // different messages (and styling); the verdict still shows either way.
@@ -251,9 +355,11 @@ function renderResult(fighterA, fighterB, verdict) {
         : artError.message || "Our artist dropped the brush on this one.";
   }
 
+  renderOdds(verdict, winnerSide);
+
   lastFight = {
-    a: { label: fighterA, image: verdict.images?.A?.src || null },
-    b: { label: fighterB, image: verdict.images?.B?.src || null },
+    a: { label: fighterA, image: verdict.images?.A?.src || null, stats: verdict.stats?.A || null, won: winnerSide === "a" },
+    b: { label: fighterB, image: verdict.images?.B?.src || null, stats: verdict.stats?.B || null, won: winnerSide === "b" },
   };
   // Remember the fight for this tab so battledex.html can link back to it.
   saveLastFight({ fighterA, fighterB, verdict });
@@ -310,7 +416,16 @@ async function saveFighter(key) {
   }
 
   const dex = loadDex();
-  dex.push({ id: newId(), label: fighter.label, image, sourceKey: imageKey(fighter.image) });
+  // The record starts with the fight it was saved after.
+  dex.push({
+    id: newId(),
+    label: fighter.label,
+    image,
+    sourceKey: imageKey(fighter.image),
+    stats: fighter.stats,
+    wins: fighter.won ? 1 : 0,
+    losses: fighter.won ? 0 : 1,
+  });
   if (storeDex(dex)) {
     btn.textContent = "Saved ✓";
     saveStatus.textContent = `${fighter.label} has joined your BattleDex!`;
@@ -330,7 +445,7 @@ document.querySelectorAll("[data-save]").forEach((btn) => {
 // ---------------------------------------------------------------------------
 // Fighters picked on battledex.html: prefill the form and reuse their saved art
 // ---------------------------------------------------------------------------
-const picks = { a: null, b: null }; // { label, image } per side, or null
+const picks = { a: null, b: null }; // { id, label, image, stats } per side, or null
 
 function setPick(key, pick) {
   picks[key] = pick;
@@ -377,15 +492,23 @@ form.addEventListener("submit", async (event) => {
   const pickA = picks.a?.label === fighterA ? picks.a : null;
   const pickB = picks.b?.label === fighterB ? picks.b : null;
   const reuseArt = [pickA && "A", pickB && "B"].filter(Boolean);
+  // Saved fighters bring their stats along so their Battle Value stays the same.
+  const knownStats = {};
+  if (pickA?.stats) knownStats.A = pickA.stats;
+  if (pickB?.stats) knownStats.B = pickB.stats;
 
   document.getElementById("loading-name-a").textContent = fighterA;
   document.getElementById("loading-name-b").textContent = fighterB;
   showView("loading");
   try {
-    const verdict = await requestFight(fighterA, fighterB, reuseArt);
+    const verdict = await requestFight(fighterA, fighterB, reuseArt, knownStats);
     // Picked fighters keep their saved BattleDex art instead of new art.
     if (pickA) verdict.images = { ...verdict.images, A: { src: pickA.image } };
     if (pickB) verdict.images = { ...verdict.images, B: { src: pickB.image } };
+    // ...and the fight goes on their record. Only here, never when a result is
+    // re-shown (#last-fight), so a fight is counted once.
+    if (pickA?.id) recordFightResult(pickA.id, verdict.winner === "A", verdict.stats?.A);
+    if (pickB?.id) recordFightResult(pickB.id, verdict.winner === "B", verdict.stats?.B);
     renderResult(fighterA, fighterB, verdict);
   } catch (err) {
     if (err instanceof FightError) showError(err.message, err.title, err.retryAfterSec);

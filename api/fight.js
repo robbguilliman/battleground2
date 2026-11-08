@@ -1,6 +1,11 @@
-// POST /api/fight  { fighterA, fighterB, reuseArt? }  ->
-//   { winner: "A" | "B", reasoning, images: { A: Art, B: Art } }
-//   where Art is { src: "data:image/jpeg;base64,..." }
+// POST /api/fight  { fighterA, fighterB, reuseArt?, knownStats? }  ->
+//   { winner: "A" | "B", reasoning, upset, odds: { A, B }, stats: { A, B },
+//     images: { A: Art, B: Art } }
+//   odds are each side's win chance in percent (never 0 or 100); upset is true
+//   when the underdog won. stats is each fighter's Stats (see StatsSchema).
+//   knownStats: { A?: Stats, B?: Stats } for fighters picked from the
+//   BattleDex (only honored for sides in reuseArt), so they keep their numbers.
+//   Art is { src: "data:image/jpeg;base64,..." }
 //            or { error: { type: "image_blocked" | "image_failed", message } }
 //            or { reused: true } for a side listed in reuseArt (e.g. ["A"]): a
 //               fighter picked from the BattleDex, whose saved art the client
@@ -9,6 +14,9 @@
 // One call per fight: rate limit, validate, then the Claude verdict and both
 // fighters' OpenAI art run in parallel. A failed verdict fails the whole fight;
 // a failed image only fails that side, so the verdict still shows.
+// The judge rates both fighters, sets the odds and writes the fight both ways;
+// this server then rolls the dice on those odds, so a huge underdog can still
+// win, just very, very rarely.
 
 const Anthropic = require("@anthropic-ai/sdk").default;
 const { betaZodOutputFormat } = require("@anthropic-ai/sdk/helpers/beta/zod");
@@ -24,17 +32,80 @@ const MAX_FIGHTER_LENGTH = 50; // matches MAX_FIGHTER_LENGTH in script.js and th
 // Verdict schema: the only definition of the output shape. The judge prompt has
 // no format instructions; field meanings live in .describe().
 // ---------------------------------------------------------------------------
-const VerdictSchema = z.object({
-  winner: z
-    .enum(["A", "B"])
-    .describe(
-      '"A" if the fighter in <fighter_a> wins, "B" if the fighter in <fighter_b> wins. ' +
-        "Always exactly one; never a tie.",
-    ),
-  reasoning: z
-    .string()
-    .describe("3 to 5 sentences of playful but logical reasoning explaining why the winner won."),
+const StatsSchema = z.object({
+  battleValue: z
+    .number()
+    .describe("Overall fighting power on the shared 0 to 10,000 Battle Value scale, counting group size."),
+  strength: z.number().describe("Raw physical power, 0 to 100 (as a group, for groups)."),
+  speed: z.number().describe("Speed and reflexes, 0 to 100."),
+  durability: z.number().describe("How much punishment it can take, 0 to 100."),
+  skill: z.number().describe("Fighting skill, tactics and intelligence, 0 to 100."),
+  special: z.number().describe("Special powers, weapons or abilities beyond the physical, 0 to 100."),
+  strengths: z.array(z.string()).describe("1 to 3 key strengths, each a short phrase of 2 to 5 words."),
+  weaknesses: z.array(z.string()).describe("1 to 3 key weaknesses, each a short phrase of 2 to 5 words."),
 });
+
+const VerdictSchema = z.object({
+  fighterA: StatsSchema.describe("Battle stats for the fighter in <fighter_a>."),
+  fighterB: StatsSchema.describe("Battle stats for the fighter in <fighter_b>."),
+  favorite: z
+    .enum(["A", "B"])
+    .describe('"A" if the fighter in <fighter_a> is more likely to win, "B" if the fighter in <fighter_b> is.'),
+  favoriteWinChance: z
+    .number()
+    .describe(
+      "The favorite's chance of winning, in percent: at least 50, and always below 100 " +
+        "(use as many nines as the mismatch deserves, e.g. 99.9999).",
+    ),
+  reasoningIfAWins: z
+    .string()
+    .describe("3 to 5 sentences narrating how the fighter in <fighter_a> wins."),
+  reasoningIfBWins: z
+    .string()
+    .describe("3 to 5 sentences narrating how the fighter in <fighter_b> wins."),
+});
+
+// ---------------------------------------------------------------------------
+// Stats clean-up and the dice roll
+// ---------------------------------------------------------------------------
+const MAX_WIN_CHANCE = 99.9999999999; // a trillion-to-one upset is always possible
+const STAT_KEYS = ["strength", "speed", "durability", "skill", "special"];
+
+const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, Math.round(Number(n) || 0)));
+const cleanTraits = (list) =>
+  (Array.isArray(list) ? list : [])
+    .map((s) => String(s).replace(/[<>]/g, "").trim().slice(0, 40))
+    .filter(Boolean)
+    .slice(0, 3);
+
+// Keeps every number in range and every trait short, whoever produced the stats.
+function normalizeStats(stats) {
+  const out = { battleValue: clamp(stats.battleValue, 0, 10_000) };
+  for (const key of STAT_KEYS) out[key] = clamp(stats[key], 0, 100);
+  out.strengths = cleanTraits(stats.strengths);
+  out.weaknesses = cleanTraits(stats.weaknesses);
+  return out;
+}
+
+// Saved stats sent back by the client: accepted only for picked sides, only if
+// they have the right shape. Anything else is ignored and the judge re-rates.
+function readKnownStats(raw, reuseArt) {
+  const known = {};
+  for (const side of reuseArt) {
+    const parsed = StatsSchema.safeParse(raw?.[side]);
+    if (parsed.success) known[side] = normalizeStats(parsed.data);
+  }
+  return known;
+}
+
+// Rolls the winner from the judge's odds. Returns { winner, odds: { A, B } }.
+function rollWinner(verdict) {
+  const chance = Math.min(MAX_WIN_CHANCE, Math.max(50, Number(verdict.favoriteWinChance) || 50));
+  const chanceA = verdict.favorite === "A" ? chance : 100 - chance;
+  const winner = Math.random() * 100 < chanceA ? "A" : "B";
+  const tidy = (n) => Number(n.toFixed(12)); // drop float noise like 0.09999999999999432
+  return { winner, odds: { A: tidy(chanceA), B: tidy(100 - chanceA) } };
+}
 
 // ---------------------------------------------------------------------------
 // Rate limiting: 5 requests per minute per IP, sliding window.
@@ -97,7 +168,8 @@ function readFighters(body) {
   const reuseArt = new Set(
     Array.isArray(body?.reuseArt) ? body.reuseArt.filter((side) => side === "A" || side === "B") : [],
   );
-  return { fighterA, fighterB, reuseArt };
+  const knownStats = readKnownStats(body?.knownStats, reuseArt);
+  return { fighterA, fighterB, reuseArt, knownStats };
 }
 
 let client; // created on first use so a missing key fails per request, not at import
@@ -106,14 +178,16 @@ function getClient() {
   return client;
 }
 
-async function judgeFight(fighterA, fighterB) {
+async function judgeFight(fighterA, fighterB, knownStats) {
   const message = await getClient().beta.messages.parse({
     model: MODEL,
     max_tokens: 16000,
     system: JUDGE_SYSTEM_PROMPT,
-    messages: [{ role: "user", content: buildJudgeUserMessage(fighterA, fighterB) }],
+    messages: [{ role: "user", content: buildJudgeUserMessage(fighterA, fighterB, knownStats) }],
     output_config: {
-      effort: "low", // short, playful verdict; keeps the wait down
+      // Medium: realistic stats and odds need some thought. It runs alongside
+      // image generation, which takes longer, so it rarely adds to the wait.
+      effort: "medium",
       format: betaZodOutputFormat(VerdictSchema),
     },
     // If a safety classifier declines, the API re-runs the request on a fallback model.
@@ -199,7 +273,7 @@ module.exports = async function handler(req, res) {
 
   let verdict;
   try {
-    verdict = await judgeFight(input.fighterA, input.fighterB);
+    verdict = await judgeFight(input.fighterA, input.fighterB, input.knownStats);
   } catch (err) {
     console.error("Verdict failed:", err);
     art.abort(); // no verdict means no result to show, so stop drawing
@@ -207,10 +281,20 @@ module.exports = async function handler(req, res) {
     return sendError(res, status, "verdict_failed", message);
   }
 
+  // Saved fighters keep their saved stats, whatever the judge wrote for them.
+  const stats = {
+    A: input.knownStats.A || normalizeStats(verdict.fighterA),
+    B: input.knownStats.B || normalizeStats(verdict.fighterB),
+  };
+  const { winner, odds } = rollWinner(verdict);
+
   const [imageA, imageB] = await Promise.all([artA, artB]);
   return res.status(200).json({
-    winner: verdict.winner,
-    reasoning: verdict.reasoning,
+    winner,
+    reasoning: winner === "A" ? verdict.reasoningIfAWins : verdict.reasoningIfBWins,
+    upset: odds[winner] < 50,
+    odds,
+    stats,
     images: { A: imageA, B: imageB },
   });
 };
