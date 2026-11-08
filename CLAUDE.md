@@ -35,7 +35,7 @@ There's no build step, linter or test suite. Vercel serves the repo root as stat
 
 **`api/fight.js`:** `POST { fighterA, fighterB, reuseArt? }` returns `{ winner: "A" | "B", reasoning, images: { A, B } }`, where each image is `{ src }` (a JPEG data URI), `{ error: { type: "image_blocked" | "image_failed", message } }`, or `{ reused: true }` for a side listed in `reuseArt`. Whole-fight failures return `{ error: { type, message } }`. In order:
 1. The per-IP rate limit: 5 requests/minute, sliding window, 429 with `Retry-After`. It's an in-memory `Map`, so it's exact under `vercel dev` but only per-instance on Vercel.
-2. Input validation: both fighters required, max 100 characters each, matching the inputs' `maxlength`.
+2. Input validation: both fighters required, max 50 characters each. The same limit is the inputs' `maxlength` and `MAX_FIGHTER_LENGTH` in both `script.js` and `api/fight.js`; keep all three in sync.
 3. The verdict and both images run in parallel. The verdict uses `client.beta.messages.parse` on `claude-sonnet-5-5`, effort `low`, `output_config.format: betaZodOutputFormat(VerdictSchema)`, and server-side refusal fallbacks (`fallbacks: "default"`). Anthropic's own 429 is reported as a 503 so the UI never confuses it with ours.
 4. A failed verdict fails the whole fight and aborts the image requests. A failed image only fails its own side.
 
@@ -49,5 +49,7 @@ There's no build step, linter or test suite. Vercel serves the repo root as stat
 - A group input like "10 cows" still gets exactly one image for its side. Handle that in the image prompt, not by looping.
 - Every image prompt ends with the shared art style template (16-bit pixel art, retro sprite style, plain solid color background, no text), quoted verbatim in `project-build.md` Stage 3.
 - Moderation-blocked is its own error type and UI message, separate from a generic image failure.
+
+**Voice:** all user-facing copy, errors included, uses a playful arena-announcer voice ("Empty corner!", "Whoa, easy, champ!"), but every message still says what went wrong and what to do next. Error text comes from the API (`api/fight.js`, `fighter-art.js`), with client fallbacks in `requestFight()`. The loading quips are `LOADING_MESSAGES` in `script.js`. They're `aria-hidden` and rotate as a shuffled deck while the loading view is shown.
 
 **Secrets:** API keys live only in env vars, never in client code. Locally they go in `.env` (git-ignored by `.env*`; `.env.local` holds only the Vercel CLI token). On Vercel, set them as project env vars.

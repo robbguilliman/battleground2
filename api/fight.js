@@ -18,7 +18,7 @@ const { generateFighterImage } = require("./_lib/fighter-art");
 const { describeFighters, pickPoses } = require("./_lib/fighter-looks");
 
 const MODEL = "claude-sonnet-5-5";
-const MAX_FIGHTER_LENGTH = 100; // matches the inputs' maxlength in index.html
+const MAX_FIGHTER_LENGTH = 50; // matches MAX_FIGHTER_LENGTH in script.js and the inputs' maxlength
 
 // ---------------------------------------------------------------------------
 // Verdict schema: the only definition of the output shape. The judge prompt has
@@ -84,15 +84,15 @@ function readFighters(body) {
     try {
       body = JSON.parse(body);
     } catch {
-      return { error: "Request body must be JSON." };
+      return { error: "That challenge came in garbled. Try again!" };
     }
   }
   const fighterA = typeof body?.fighterA === "string" ? body.fighterA.trim() : "";
   const fighterB = typeof body?.fighterB === "string" ? body.fighterB.trim() : "";
 
-  if (!fighterA || !fighterB) return { error: "Both fighters need a name before they can fight." };
+  if (!fighterA || !fighterB) return { error: "We need a challenger in both corners before the bell can ring!" };
   if (fighterA.length > MAX_FIGHTER_LENGTH || fighterB.length > MAX_FIGHTER_LENGTH) {
-    return { error: `Fighter names can be at most ${MAX_FIGHTER_LENGTH} characters.` };
+    return { error: `Whoa, that's a mouthful! The ring announcer can't shout a name that long. Keep each fighter to ${MAX_FIGHTER_LENGTH} characters or fewer.` };
   }
   const reuseArt = new Set(
     Array.isArray(body?.reuseArt) ? body.reuseArt.filter((side) => side === "A" || side === "B") : [],
@@ -122,10 +122,10 @@ async function judgeFight(fighterA, fighterB) {
   });
 
   if (message.stop_reason === "refusal") {
-    throw new VerdictError("The judge refused to rule on this fight. Try different fighters.");
+    throw new VerdictError("The judges refuse to call this one! Try a different matchup.");
   }
   if (message.stop_reason === "max_tokens" || !message.parsed_output) {
-    throw new VerdictError("The judge's verdict came back incomplete. Please try again.");
+    throw new VerdictError("The judge's scorecard got cut off mid-sentence. Ring the bell again!");
   }
   return message.parsed_output;
 }
@@ -137,15 +137,15 @@ function verdictErrorResponse(err) {
   if (err instanceof VerdictError) return [502, err.message];
   if (err instanceof Anthropic.RateLimitError) {
     // Anthropic's limit, not ours: report as busy so the UI doesn't confuse it with our 429.
-    return [503, "The judge is swamped right now. Try again in a moment."];
+    return [503, "The judges are buried in scorecards right now. Give them a moment, then try again."];
   }
   if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
-    return [500, "The judge isn't set up correctly (API key rejected)."];
+    return [500, "The judges' booth is locked: the API key was rejected. The arena crew needs to fix this."];
   }
-  if (err instanceof Anthropic.APIConnectionError) return [504, "Couldn't reach the judge. Please try again."];
-  if (err instanceof Anthropic.APIError) return [502, "The judge ran into a problem. Please try again."];
+  if (err instanceof Anthropic.APIConnectionError) return [504, "We lost contact with the judges' booth. Ring the bell again!"];
+  if (err instanceof Anthropic.APIError) return [502, "The judges' booth had a malfunction. Ring the bell again!"];
   // AnthropicError without a status: e.g. the structured output failed zod validation.
-  return [502, "The judge's verdict didn't make sense. Please try again."];
+  return [502, "The judge's scorecard came back scrambled. Ring the bell again!"];
 }
 
 // Never rejects: resolves to { src } or { error: { type, message } }.
@@ -172,7 +172,7 @@ module.exports = async function handler(req, res) {
       res,
       429,
       "rate_limited",
-      `Whoa, slow down! You can start 5 fights a minute. Try again in ${limit.retryAfterSec}s.`,
+      `That's 5 fights in a minute, and the arena needs a breather! Back in the ring in ${limit.retryAfterSec}s.`,
     );
   }
 
@@ -182,7 +182,7 @@ module.exports = async function handler(req, res) {
 
   if (!process.env.ANTHROPIC_API_KEY) {
     console.error("ANTHROPIC_API_KEY is not set");
-    return sendError(res, 500, "verdict_failed", "The judge isn't set up yet (missing API key).");
+    return sendError(res, 500, "verdict_failed", "The judges haven't shown up yet: the API key is missing. The arena crew needs to set it up.");
   }
 
   // 3. Verdict and both images, in parallel.

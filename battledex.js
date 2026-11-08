@@ -116,7 +116,7 @@ async function shrinkOldFighters() {
 }
 
 document.getElementById("dex-clear").addEventListener("click", () => {
-  if (confirm("Remove every fighter from your BattleDex? This can't be undone.")) {
+  if (confirm("Send every fighter in your BattleDex home for good? There's no rematch for this one.")) {
     picked = [];
     storeDex([]);
     renderDex();

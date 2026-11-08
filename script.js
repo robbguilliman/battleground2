@@ -14,6 +14,7 @@ const form = document.getElementById("fight-form");
 const inputA = document.getElementById("fighter-a");
 const inputB = document.getElementById("fighter-b");
 
+const MAX_FIGHTER_LENGTH = 50; // also the inputs' maxlength, and enforced by api/fight.js
 const FIGHT_TIMEOUT_MS = 120_000; // never leave the loading view up forever (matches maxDuration)
 
 // Show exactly one view; every other view gets `hidden`.
@@ -21,9 +22,67 @@ function showView(name) {
   for (const [key, el] of Object.entries(views)) {
     el.hidden = key !== name;
   }
+  if (name === "loading") startLoadingMessages();
+  else stopLoadingMessages();
 }
 
-function showError(message, title = "Something went wrong") {
+// ---------------------------------------------------------------------------
+// Rotating loading messages: on-theme quips that cycle while the fight loads.
+// Screen readers get one steady message instead (the quips are aria-hidden).
+// ---------------------------------------------------------------------------
+const LOADING_MESSAGES = [
+  "Sharpening claws…",
+  "Consulting the ancient scrolls…",
+  "Polishing the championship belt…",
+  "Taping up the gloves…",
+  "Bribing the referee…",
+  "Sweeping the arena floor…",
+  "Warming up the crowd…",
+  "Checking the rulebook (there are no rules)…",
+  "Mixing the pixel paint…",
+  "Measuring the tale of the tape…",
+  "Flexing in the mirror…",
+  "Taking bets from the cheap seats…",
+  "Oiling the armor…",
+  "Feeding the arena mascot…",
+  "Sketching the battle portraits…",
+  "Tallying the scorecards…",
+];
+const LOADING_INTERVAL_MS = 2200;
+const loadingText = document.getElementById("loading-text");
+let loadingTimer = null;
+let loadingQueue = [];
+
+function nextLoadingMessage() {
+  // Shuffled deck: every quip shows once before any repeats, never twice in a row.
+  if (!loadingQueue.length) {
+    const last = loadingText.textContent;
+    loadingQueue = [...LOADING_MESSAGES].sort(() => Math.random() - 0.5);
+    if (loadingQueue[0] === last) loadingQueue.push(loadingQueue.shift());
+  }
+  return loadingQueue.shift();
+}
+
+function showLoadingMessage() {
+  loadingText.classList.add("is-swapping");
+  setTimeout(() => {
+    loadingText.textContent = nextLoadingMessage();
+    loadingText.classList.remove("is-swapping");
+  }, 150);
+}
+
+function startLoadingMessages() {
+  stopLoadingMessages();
+  loadingText.textContent = nextLoadingMessage();
+  loadingTimer = setInterval(showLoadingMessage, LOADING_INTERVAL_MS);
+}
+
+function stopLoadingMessages() {
+  clearInterval(loadingTimer);
+  loadingTimer = null;
+}
+
+function showError(message, title = "Chaos in the arena!") {
   document.getElementById("error-title").textContent = title;
   document.getElementById("error-message").textContent = message;
   showView("error");
@@ -63,9 +122,9 @@ async function requestFight(fighterA, fighterB, reuseArt = []) {
     });
   } catch (err) {
     if (err.name === "AbortError") {
-      throw new FightError("The judge timed out", "The verdict took too long. Please try again.");
+      throw new FightError("Time's up!", "The judges deliberated so long the crowd went home. Ring the bell and try again!");
     }
-    throw new FightError("You're offline", "Couldn't reach the arena. Check your connection and try again.");
+    throw new FightError("Lost the signal!", "We can't reach the arena. Check your internet connection, then step back into the ring.");
   } finally {
     clearTimeout(timer);
   }
@@ -76,12 +135,12 @@ async function requestFight(fighterA, fighterB, reuseArt = []) {
 
   const message = data?.error?.message;
   if (response.status === 429) {
-    throw new FightError("Too many fights", message || "You've hit the fight limit. Wait a minute and try again.");
+    throw new FightError("Whoa, easy, champ!", message || "That's a lot of fights in a row. The arena needs a minute to breathe, then you're back on.");
   }
   if (response.status === 400) {
-    throw new FightError("Check your fighters", message || "Those fighters couldn't enter the ring.");
+    throw new FightError("Hold it right there!", message || "Those fighters failed the weigh-in. Check the names and try again.");
   }
-  throw new FightError("The judge couldn't decide", message || "The verdict failed. Please try again.");
+  throw new FightError("No decision!", message || "The judges' table is in chaos. Ring the bell and try again!");
 }
 
 // The fighters on screen, for the save buttons: { a: { label, image }, b: ... },
@@ -115,8 +174,8 @@ function renderResult(fighterA, fighterB, verdict) {
     note.textContent = !artError
       ? ""
       : artError.type === "image_blocked"
-        ? artError.message || "Blocked by the image safety filter, so this fighter couldn't be drawn."
-        : artError.message || "The artist couldn't draw this fighter.";
+        ? artError.message || "The arena officials stopped this portrait at the gates. Try a different fighter!"
+        : artError.message || "Our artist dropped the brush on this one.";
   }
 
   lastFight = {
@@ -176,12 +235,12 @@ async function saveFighter(key) {
   dex.push({ id: newId(), label: fighter.label, image, sourceKey: imageKey(fighter.image) });
   if (storeDex(dex)) {
     btn.textContent = "Saved ✓";
-    saveStatus.textContent = `${fighter.label} was added to your BattleDex.`;
+    saveStatus.textContent = `${fighter.label} has joined your BattleDex!`;
   } else {
     btn.disabled = false;
     btn.textContent = "Save to BattleDex";
     saveStatus.textContent =
-      "Your BattleDex is full. Remove some fighters to make room, then try again.";
+      "Your BattleDex is full to the rafters! Retire a few fighters to make room, then try again.";
   }
 }
 
@@ -216,7 +275,13 @@ form.addEventListener("submit", async (event) => {
   const fighterB = inputB.value.trim();
 
   if (!fighterA || !fighterB) {
-    showError("Both fighters need a name before they can fight.", "Check your fighters");
+    showError("We need a challenger in both corners before the bell can ring!", "Empty corner!");
+    return;
+  }
+  // maxlength stops typing past the limit, but not every path into the form
+  // does (e.g. a long name picked from the BattleDex).
+  if (fighterA.length > MAX_FIGHTER_LENGTH || fighterB.length > MAX_FIGHTER_LENGTH) {
+    showError(`Whoa, that's a mouthful! The ring announcer can't shout a name that long. Keep each fighter to ${MAX_FIGHTER_LENGTH} characters or fewer.`, "Name too long!");
     return;
   }
 
@@ -235,7 +300,7 @@ form.addEventListener("submit", async (event) => {
     if (err instanceof FightError) showError(err.message, err.title);
     else {
       console.error(err);
-      showError("Something unexpected happened. Please try again.");
+      showError("Something went haywire behind the scenes. Dust yourself off and try again!");
     }
   }
 });

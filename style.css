@@ -414,3 +414,20 @@ a.btn {
     grid-template-columns: 1fr;
   }
 }
+
+/* Rotating loading quips */
+.loading-text {
+  min-height: 1.5em;
+  font-weight: 600;
+  transition: opacity 0.15s ease;
+}
+
+.loading-text.is-swapping {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-text {
+    transition: none;
+  }
+}

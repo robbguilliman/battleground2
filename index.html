@@ -19,13 +19,13 @@
       <form id="fight-form" novalidate>
         <div class="field">
           <label for="fighter-a">Fighter A</label>
-          <input id="fighter-a" name="fighterA" type="text" maxlength="100" autocomplete="off" placeholder="e.g. a grizzly bear">
+          <input id="fighter-a" name="fighterA" type="text" maxlength="50" autocomplete="off" placeholder="e.g. a grizzly bear">
           <p class="picked" id="picked-a" hidden><img alt="" id="picked-img-a"> From your BattleDex, keeping its saved art</p>
         </div>
         <p class="vs" aria-hidden="true">VS</p>
         <div class="field">
           <label for="fighter-b">Fighter B</label>
-          <input id="fighter-b" name="fighterB" type="text" maxlength="100" autocomplete="off" placeholder="e.g. 10 angry geese">
+          <input id="fighter-b" name="fighterB" type="text" maxlength="50" autocomplete="off" placeholder="e.g. 10 angry geese">
           <p class="picked" id="picked-b" hidden><img alt="" id="picked-img-b"> From your BattleDex, keeping its saved art</p>
         </div>
         <button type="submit" class="btn btn-primary">Fight!</button>
@@ -36,7 +36,8 @@
     <!-- View: loading -->
     <section id="view-loading" class="view" hidden aria-live="polite" aria-busy="true">
       <div class="spinner" aria-hidden="true"></div>
-      <p id="loading-text">Judging the fight and drawing the fighters…</p>
+      <p id="loading-text" class="loading-text" aria-hidden="true">Judging the fight and drawing the fighters…</p>
+      <p class="visually-hidden">Judging the fight and drawing the fighters…</p>
     </section>
 
     <!-- View: result -->

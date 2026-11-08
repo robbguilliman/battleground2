@@ -61,7 +61,7 @@ function isModerationBlock(err) {
  */
 async function generateFighterImage(fighter, { signal, description, pose } = {}) {
   if (!process.env.OPENAI_API_KEY) {
-    throw new ImageError("image_failed", "The artist isn't set up yet (missing API key).");
+    throw new ImageError("image_failed", "Our artist hasn't arrived yet: the API key is missing.");
   }
 
   try {
@@ -80,7 +80,7 @@ async function generateFighterImage(fighter, { signal, description, pose } = {})
     );
 
     const b64 = result.data?.[0]?.b64_json;
-    if (!b64) throw new ImageError("image_failed", "The artist came back with a blank canvas.");
+    if (!b64) throw new ImageError("image_failed", "The artist handed in a blank canvas!");
     return `data:image/jpeg;base64,${b64}`;
   } catch (err) {
     if (err instanceof ImageError) throw err;
@@ -88,17 +88,17 @@ async function generateFighterImage(fighter, { signal, description, pose } = {})
     if (isModerationBlock(err)) {
       throw new ImageError(
         "image_blocked",
-        "This fighter couldn't be drawn because it was blocked by the image safety filter. Try a different fighter.",
+        "The arena officials stopped this portrait at the gates: the image safety filter blocked it, so this fighter couldn't be drawn. Try a different fighter!",
       );
     }
     console.error(`Image failed for "${fighter}": ${err.message}`, err.requestID ? `(request ${err.requestID})` : "");
     if (err instanceof OpenAI.AuthenticationError || err instanceof OpenAI.PermissionDeniedError) {
-      throw new ImageError("image_failed", "The artist isn't set up correctly (API key rejected).");
+      throw new ImageError("image_failed", "The artist's studio is locked: the API key was rejected.");
     }
     if (err instanceof OpenAI.RateLimitError) {
-      throw new ImageError("image_failed", "The artist is swamped right now. Try again in a moment.");
+      throw new ImageError("image_failed", "The artist is buried in commissions. Try again in a moment!");
     }
-    throw new ImageError("image_failed", "The artist couldn't finish this fighter's portrait.");
+    throw new ImageError("image_failed", "The artist snapped a brush mid-portrait. Fight again for a fresh one!");
   }
 }
 
